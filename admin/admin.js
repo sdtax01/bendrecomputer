@@ -107,7 +107,13 @@
       e.preventDefault();
       const b = $('button', e.target); b.disabled = true; b.textContent = 'Signing in…';
       const { error } = await sb.auth.signInWithPassword({ email: $('#em').value.trim(), password: $('#pw').value });
-      if (error) { showLogin('Incorrect email or password.'); return; }
+      if (error) {
+        const m = String(error.message || '');
+        showLogin(/confirm/i.test(m) ? 'This email is not confirmed yet. In Supabase → Authentication → Users, confirm the user (or delete and re-add it with "Auto Confirm User" ticked).'
+          : /invalid login/i.test(m) ? 'Email or password is incorrect. If you are sure they are right, reset the password in Supabase → Authentication → Users.'
+          : 'Sign-in failed: ' + m);
+        return;
+      }
       boot();
     });
   }
@@ -117,7 +123,8 @@
     if (!session) return showLogin();
     user = session.user;
     const { data, error } = await sb.from('admin_users').select('*').eq('user_id', user.id).maybeSingle();
-    if (error || !data) { await sb.auth.signOut(); return showLogin('This account is not authorised for the admin dashboard.'); }
+    if (error) { await sb.auth.signOut(); return showLogin('Signed in, but the database could not be read: ' + error.message + ' — run schema.sql in the Supabase SQL Editor first.'); }
+    if (!data) { await sb.auth.signOut(); return showLogin('Signed in, but this user is not in the admin_users table yet. Run the "insert into public.admin_users" SQL in the Supabase SQL Editor, then try again.'); }
     me = data;
     shell();
     go('overview');
