@@ -533,5 +533,6 @@
   }
 
   sb.auth.onAuthStateChange((ev) => { if (ev === 'SIGNED_OUT' && me) { me = null; showLogin(); } });
-  boot();
+  window.addEventListener('unhandledrejection', (e) => console.error(e.reason));
+  boot().catch((e) => showLogin('Could not connect to Supabase: ' + (e && e.message ? e.message : e) + '. Check assets/js/config.js and your internet connection.'));
 })();
