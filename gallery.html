@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Student Gallery | Bendre Computer Typing Institute, Pune</title>
+<meta name="description" content="Batch-wise photos of students at Bendre Computer Typing Institute, Wadgaonsheri, Pune.">
+<meta property="og:title" content="Student Gallery | Bendre Computer Typing Institute">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0b1f4b">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div id="site-header"></div>
+<main id="main">
+  <section class="page-hero"><div class="container">
+    <span class="eyebrow">Student Gallery</span><h1 id="g-title">Every batch has a story</h1>
+    <p class="lead" id="g-lead" style="margin-top:14px">Browse photographs batch by batch.</p>
+  </div></section>
+
+  <section class="section" style="padding-top:30px"><div class="container">
+    <!-- batch list view -->
+    <div id="list-view">
+      <div class="timeline" id="timeline" aria-label="Batch timeline"></div>
+      <div class="toolbar">
+        <input class="input" id="q" type="search" placeholder="Search batches…" aria-label="Search batches">
+        <select class="input" id="course-filter" aria-label="Filter by course"><option value="">All courses</option></select>
+        <select class="input" id="batch-filter" aria-label="Filter by batch"><option value="">All batches</option></select>
+      </div>
+      <div class="grid grid-3" id="batches"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+    </div>
+
+    <!-- single batch view -->
+    <div id="batch-view" hidden>
+      <button class="back-link" id="back">← All batches</button>
+      <div class="masonry" id="photos"></div>
+      <div class="center" style="margin-top:24px"><button class="btn btn-ghost" id="more" hidden>Load more photos</button></div>
+    </div>
+  </div></section>
+</main>
+
+<div class="lightbox" id="lb" role="dialog" aria-modal="true" aria-label="Photo viewer">
+  <button class="lb-btn lb-close" id="lb-close" aria-label="Close">✕</button>
+  <button class="lb-btn lb-prev" id="lb-prev" aria-label="Previous photo">‹</button>
+  <img id="lb-img" alt="">
+  <button class="lb-btn lb-next" id="lb-next" aria-label="Next photo">›</button>
+  <div class="lb-cap" id="lb-cap"></div><div class="lb-count" id="lb-count"></div>
+</div>
+
+<div id="site-footer"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/common.js"></script>
+<script src="assets/js/gallery.js"></script>
+</body>
+</html>
