@@ -8,29 +8,32 @@
 <meta property="og:title" content="Contact | Bendre Computer Typing Institute">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#0b1f4b">
+<script>document.documentElement.classList.add('js');setTimeout(function(){if(!window.__motion)document.documentElement.classList.remove('js')},4000)</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
 <div id="site-header"></div>
 <main id="main">
-  <section class="page-hero"><div class="container">
-    <span class="eyebrow">Contact Us</span><h1>We'd love to hear from you</h1>
-    <p class="lead" style="margin-top:14px">Visit, call, or send a message — whichever is easiest.</p>
+  <section class="page-hero"><div class="hero-bg" aria-hidden="true"></div><div class="container">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Home</a><span>/</span><span aria-current="page" style="opacity:1;color:var(--navy)">Contact Us</span></nav>
+    <span class="eyebrow">Contact Us</span>
+    <h1 class="split-auto">We'd love to hear from you</h1>
+    <p class="lead" data-reveal style="--d:300ms">Visit, call, or send a message — whichever is easiest.</p>
   </div></section>
-  <section class="section" style="padding-top:36px"><div class="container">
+  <section class="section" style="padding-top:clamp(2rem,4vw,3.4rem)"><div class="container">
     <div class="contact-grid">
       <div>
-        <ul class="info-list" id="info"></ul>
-        <p style="margin-top:22px;display:flex;gap:10px;flex-wrap:wrap">
+        <ul class="info-list" id="info" data-stagger></ul>
+        <p style="margin-top:1.5rem;display:flex;gap:.7rem;flex-wrap:wrap">
           <a class="btn btn-primary" id="dir" target="_blank" rel="noopener" href="#">Get Directions</a>
           <a class="btn btn-ghost" id="call" href="#">Call Now</a>
         </p>
-        <iframe class="map" id="map" title="Map showing Bendre Computer Typing Institute" loading="lazy" referrerpolicy="no-referrer-when-downgrade" style="margin-top:26px"></iframe>
+        <iframe class="map" id="map" title="Map showing Bendre Computer Typing Institute" loading="lazy" referrerpolicy="no-referrer-when-downgrade" style="margin-top:1.8rem"></iframe>
       </div>
-      <div class="form-card" id="card">
-        <h2 style="font-size:1.5rem;margin-bottom:18px">Send us a message</h2>
+      <div class="form-card" id="card" data-reveal="left">
+        <h2 style="font-size:1.6rem;margin-bottom:1.2rem">Send us a message</h2>
         <form id="form">
           <div class="form-grid">
             <div class="field full" data-f="student_name"><label for="student_name">Your Name <span class="req">*</span></label><input class="input" id="student_name" name="student_name" maxlength="100" autocomplete="name"><div class="err" role="alert"></div></div>
@@ -49,19 +52,20 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/config.js"></script>
 <script src="assets/js/common.js"></script>
+<script src="assets/js/motion.js"></script>
 <script src="assets/js/forms.js"></script>
 <script>
 (async function () {
-  const { esc } = window.BCTI;
+  const { esc, icon } = window.BCTI;
   const S = await window.BCTI.ready; const c = S.contact;
   const q = encodeURIComponent(c.maps_query || c.address);
   document.getElementById('info').innerHTML = `
-    <li><span class="icon" aria-hidden="true">🏫</span><div><b>${esc(c.institute_name)}</b></div></li>
-    <li><span class="icon" aria-hidden="true">📍</span><div><b>Address</b><br>${esc(c.address)}</div></li>
-    <li><span class="icon" aria-hidden="true">📞</span><div><b>Phone</b><br><a href="tel:${esc(c.phone)}">${esc(c.phone)}</a></div></li>
-    <li><span class="icon" aria-hidden="true">💬</span><div><b>WhatsApp</b><br><a href="${esc(window.BCTI.waLink(c))}" target="_blank" rel="noopener">Chat on WhatsApp</a></div></li>
-    ${c.email ? `<li><span class="icon" aria-hidden="true">✉️</span><div><b>Email</b><br><a href="mailto:${esc(c.email)}">${esc(c.email)}</a></div></li>` : ''}
-    ${c.opening_hours ? `<li><span class="icon" aria-hidden="true">🕘</span><div><b>Opening hours</b><br>${esc(c.opening_hours).replace(/\n/g, '<br>')}</div></li>` : ''}`;
+    <li><span class="icon" aria-hidden="true">${icon('school')}</span><div><b>${esc(c.institute_name)}</b></div></li>
+    <li><span class="icon" aria-hidden="true">${icon('pin')}</span><div><b>Address</b><br>${esc(c.address)}</div></li>
+    <li><span class="icon" aria-hidden="true">${icon('phone')}</span><div><b>Phone</b><br><a href="tel:${esc(c.phone)}">${esc(c.phone)}</a></div></li>
+    <li><span class="icon" aria-hidden="true">${icon('chat')}</span><div><b>WhatsApp</b><br><a href="${esc(window.BCTI.waLink(c))}" target="_blank" rel="noopener">Chat on WhatsApp</a></div></li>
+    ${c.email ? `<li><span class="icon" aria-hidden="true">${icon('mail')}</span><div><b>Email</b><br><a href="mailto:${esc(c.email)}">${esc(c.email)}</a></div></li>` : ''}
+    ${c.opening_hours ? `<li><span class="icon" aria-hidden="true">${icon('clock')}</span><div><b>Opening hours</b><br>${esc(c.opening_hours).replace(/\n/g, '<br>')}</div></li>` : ''}`;
   document.getElementById('map').src = `https://www.google.com/maps?q=${q}&output=embed`;
   document.getElementById('dir').href = `https://www.google.com/maps/dir/?api=1&destination=${q}`;
   document.getElementById('call').href = `tel:${c.phone}`;
@@ -70,8 +74,8 @@
     kind: 'contact',
     required: ['student_name', 'message'],
     onSuccess: (ref) => {
-      document.getElementById('card').innerHTML = `<div class="success"><div class="tick" aria-hidden="true">✓</div><h2>Message sent</h2>
-        <p class="lead" style="margin:12px auto 0">Thank you for contacting Bendre Computer Typing Institute. Our team will get back to you soon.</p>
+      document.getElementById('card').innerHTML = `<div class="success"><div class="tick" aria-hidden="true">${window.BCTI.icon('check')}</div><h2>Message sent</h2>
+        <p class="lead" style="margin:.8rem auto 0">Thank you for contacting Bendre Computer Typing Institute. Our team will get back to you soon.</p>
         <div class="refno">Reference: ${esc(ref)}</div></div>`;
     }
   });

@@ -8,44 +8,49 @@
 <meta property="og:title" content="About | Bendre Computer Typing Institute">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#0b1f4b">
+<script>document.documentElement.classList.add('js');setTimeout(function(){if(!window.__motion)document.documentElement.classList.remove('js')},4000)</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
 <div id="site-header"></div>
 <main id="main">
-  <section class="page-hero"><div class="container">
-    <span class="eyebrow">About Institute</span><h1>Building practical skills, one batch at a time</h1>
+  <section class="page-hero"><div class="hero-bg" aria-hidden="true"></div><div class="container">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Home</a><span>/</span><span aria-current="page" style="opacity:1;color:var(--navy)">About Institute</span></nav>
+    <span class="eyebrow">About Institute</span>
+    <h1 class="split-auto">Building practical skills, one batch at a time</h1>
   </div></section>
-  <section class="section" style="padding-top:36px"><div class="container">
-    <div class="prose" id="about-intro" style="max-width:760px"></div>
-    <div class="grid grid-3" id="about-cards" style="margin-top:32px"></div>
-    <div id="about-empty" class="setup-banner" hidden style="margin-top:28px">Vision, mission, teaching approach and learning environment can be added from the admin dashboard → Website Content.</div>
+  <section class="section" style="padding-top:clamp(2rem,4vw,3.4rem)"><div class="container">
+    <div class="prose" id="about-intro" style="max-width:48rem" data-reveal></div>
+    <div class="grid grid-3" id="about-cards" data-stagger style="margin-top:2rem"></div>
+    <div id="about-empty" class="setup-banner" hidden style="margin-top:1.8rem">Vision, mission, teaching approach and learning environment can be added from the admin dashboard → Website Content.</div>
   </div></section>
   <section class="section alt"><div class="container">
-    <div class="section-head center"><span class="eyebrow">Learning Environment</span><h2>See our students and classes</h2>
+    <div class="section-head center" data-reveal><span class="eyebrow">Learning Environment</span><h2>See our students and classes</h2>
       <p class="lead">Photographs of our batches are in the student gallery.</p></div>
     <p class="center"><a class="btn btn-primary" href="gallery.html">Visit the Student Gallery</a></p>
   </div></section>
   <section class="section"><div class="container">
-    <div class="cta-banner"><h2>Ready to Start Your Learning Journey?</h2>
-      <p>Take the first step towards developing your computer and typing skills.</p>
-      <a class="btn btn-accent" href="admissions.html">Enquire for Admission</a>
-      <a class="btn btn-light" href="contact.html" style="margin-left:8px">Contact Us</a></div>
+    <div class="cta-banner" data-reveal="scale"><span class="ring a" data-parallax="-0.08" aria-hidden="true"></span><span class="ring b" data-parallax="0.12" aria-hidden="true"></span>
+      <div><h2>Ready to Start Your Learning Journey?</h2>
+      <p>Take the first step towards developing your computer and typing skills.</p></div>
+      <div class="cta-row"><a class="btn btn-accent" href="admissions.html">Enquire for Admission</a>
+      <a class="btn btn-light" href="contact.html">Contact Us</a></div></div>
   </div></section>
 </main>
 <div id="site-footer"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/config.js"></script>
 <script src="assets/js/common.js"></script>
+<script src="assets/js/motion.js"></script>
 <script>
 (async function () {
-  const { esc } = window.BCTI;
+  const { esc, icon } = window.BCTI;
   const S = await window.BCTI.ready; const a = S.about;
-  document.getElementById('about-intro').innerHTML = a.intro ? `<p style="font-size:1.1rem">${esc(a.intro)}</p>` : '';
-  const items = [['🔭', 'Our Vision', a.vision], ['🎯', 'Our Mission', a.mission], ['📘', 'Teaching Approach', a.teaching_approach], ['🏫', 'Learning Environment', a.learning_environment]].filter((x) => x[2] && x[2].trim());
-  document.getElementById('about-cards').innerHTML = items.map(([i, t, d]) => `<div class="card"><div class="icon">${i}</div><h3>${t}</h3><p>${esc(d)}</p></div>`).join('');
+  document.getElementById('about-intro').innerHTML = a.intro ? `<p style="font-size:1.2rem;color:var(--ink);line-height:1.7">${esc(a.intro)}</p>` : '';
+  const items = [['compass', 'Our Vision', a.vision], ['flag', 'Our Mission', a.mission], ['book', 'Teaching Approach', a.teaching_approach], ['school', 'Learning Environment', a.learning_environment]].filter((x) => x[2] && x[2].trim());
+  document.getElementById('about-cards').innerHTML = items.map(([i, t, d]) => `<div class="card"><div class="icon">${icon(i)}</div><h3>${t}</h3><p>${esc(d)}</p></div>`).join('');
   document.getElementById('about-empty').hidden = items.length > 0;
 })();
 </script>

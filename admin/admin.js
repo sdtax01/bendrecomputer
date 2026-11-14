@@ -95,8 +95,8 @@
   function showLogin(msg) {
     app.innerHTML = `
     <div class="login-wrap"><form class="login-card" id="lf">
-      <span class="logo-mark" style="display:grid;width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,var(--blue),var(--cyan));place-items:center;color:#fff;font-size:1.4rem">⌨</span>
-      <h1>Staff sign in</h1><p class="sub" style="color:var(--muted);margin-bottom:18px">Bendre Computer Typing Institute</p>
+      <span class="logo-mark"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg></span>
+      <h1>Staff sign in</h1><p class="sub" style="color:var(--muted);margin-bottom:1.2rem">Bendre Computer Typing Institute</p>
       ${msg ? `<div class="setup-banner" role="alert">${esc(msg)}</div>` : ''}
       <div class="field" style="margin-bottom:14px"><label for="em">Email</label><input class="input" id="em" type="email" required autocomplete="username"></div>
       <div class="field" style="margin-bottom:20px"><label for="pw">Password</label><input class="input" id="pw" type="password" required autocomplete="current-password"></div>
@@ -143,7 +143,7 @@
     <div class="topbar"><b>Bendre Admin</b><button id="menu">Menu</button></div>
     <div class="adm">
       <aside class="side" id="side">
-        <div class="logo"><span class="logo-mark" aria-hidden="true">⌨</span><span>Bendre<small>Admin</small></span></div>
+        <div class="logo"><span class="logo-mark" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg></span><span>Bendre<small>Admin</small></span></div>
         <nav>${items.map(([k, l]) => `<button data-v="${k}">${l}</button>`).join('')}<button data-v="logout">Logout</button></nav>
         <div class="who">${esc(user.email)}<br>Role: ${esc(me.role)}</div>
       </aside>
@@ -327,7 +327,7 @@
       <div class="drop" id="drop"><p><b>Drag photos here</b> or</p><p style="margin-top:8px"><label class="btn btn-primary btn-sm" style="cursor:pointer">Choose photos<input type="file" id="files" multiple accept="image/jpeg,image/png,image/webp" hidden></label></p>
       <p class="hint">JPG, PNG or WebP, up to 15 MB each. Photos are optimised and thumbnails are created automatically.</p>
       <div class="prog" hidden id="pbar"><i></i></div><div class="upl-list" id="ulist"></div></div>
-      <div class="pgrid" id="pgrid"></div></div>` : '<div class="empty"><div class="big">📸</div><p>Create a batch first, then add photos to it.</p><p style="margin-top:12px"><button class="btn btn-primary" id="mk">Create a batch</button></p></div>'}`;
+      <div class="pgrid" id="pgrid"></div></div>` : '<div class="empty"><span class="big"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg></span><p>Create a batch first, then add photos to it.</p><p style="margin-top:12px"><button class="btn btn-primary" id="mk">Create a batch</button></p></div>'}`;
     if (!bs.length) { $('#mk').addEventListener('click', () => go('batches')); return; }
     $('#bsel').addEventListener('change', (e) => go('gallery', e.target.value));
     const batch = bs.find((b) => b.id === sel);
@@ -447,9 +447,9 @@
         <td><b>${esc(r.student_name)}</b><div class="hint">${esc(r.guardian_name ? 'Guardian: ' + r.guardian_name : '')}</div></td>
         <td><a href="tel:${esc(r.mobile)}">${esc(r.mobile)}</a>${r.whatsapp ? `<div class="hint">WA: ${esc(r.whatsapp)}</div>` : ''}${r.email ? `<div class="hint">${esc(r.email)}</div>` : ''}</td>
         <td>${esc(r.course_name || '—')}</td>
-        <td style="max-width:240px"><div class="hint">${esc([r.qualification, r.preferred_timing].filter(Boolean).join(' · '))}</div>${esc(r.message || '')}</td>
-        <td><select class="input" data-st="${r.id}" style="min-width:150px;padding:8px">${STATUSES.map((s) => `<option ${s === r.status ? 'selected' : ''}>${s}</option>`).join('')}</select></td>
-        <td><textarea class="input" rows="2" data-nt="${r.id}" style="min-width:180px;padding:8px" placeholder="Add a note…">${esc(r.follow_up_notes)}</textarea></td>
+        <td style="max-width:15rem"><div class="hint">${esc([r.qualification, r.preferred_timing].filter(Boolean).join(' · '))}</div>${esc(r.message || '')}</td>
+        <td><select class="input" data-st="${r.id}" style="min-width:9.5rem;padding:.5rem">${STATUSES.map((s) => `<option ${s === r.status ? 'selected' : ''}>${s}</option>`).join('')}</select></td>
+        <td><textarea class="input" rows="2" data-nt="${r.id}" style="min-width:11rem;padding:.5rem" placeholder="Add a note…">${esc(r.follow_up_notes)}</textarea></td>
         <td><a class="btn btn-sm" style="background:#25d366;color:#fff" href="${esc(wa(r))}" target="_blank" rel="noopener">WhatsApp</a></td></tr>`).join('') || '<tr><td colspan="8">No enquiries match.</td></tr>';
     }
     ['s', 'fc', 'fs', 'fk', 'd1', 'd2'].forEach((id) => $('#' + id).addEventListener('input', filter));
@@ -520,7 +520,7 @@
   /* ---------- profile ---------- */
   async function profile() {
     V().innerHTML = `<h1>Admin Profile</h1><p class="sub">Signed in as <b>${esc(user.email)}</b> · role <b>${esc(me.role)}</b></p>
-    <form class="panel" id="pf" style="max-width:480px"><h3 style="margin-bottom:14px">Change password</h3>
+    <form class="panel" id="pf" style="max-width:30rem"><h3 style="margin-bottom:14px">Change password</h3>
       <div class="field" style="margin-bottom:12px"><label>New password (min. 8 characters)</label><input class="input" type="password" name="p1" minlength="8" required autocomplete="new-password"></div>
       <div class="field" style="margin-bottom:16px"><label>Confirm new password</label><input class="input" type="password" name="p2" minlength="8" required autocomplete="new-password"></div>
       <button class="btn btn-primary" type="submit">Update password</button></form>`;

@@ -5,23 +5,32 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Page not found | Bendre Computer Typing Institute</title>
 <meta name="robots" content="noindex">
-<base href="/">
+<script>
+// 404 pages are served from any path, so resolve assets from the site root.
+// Works on a custom domain (/) and on GitHub Pages project sites (/repo-name/).
+(function(){var p=location.pathname.split('/').filter(Boolean),gh=/\.github\.io$/.test(location.hostname);
+var b=gh&&p.length?'/'+p[0]+'/':'/';document.write('<base href="'+b+'">');
+document.documentElement.classList.add('js');setTimeout(function(){if(!window.__motion)document.documentElement.classList.remove('js')},4000)})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
 <div id="site-header"></div>
 <main id="main" class="notfound"><div class="container">
-  <div class="num">404</div>
-  <h1 style="font-size:2rem;margin:10px 0">This page took a wrong turn</h1>
-  <p class="lead" style="margin:0 auto 24px">The page you are looking for does not exist or has moved.</p>
-  <a class="btn btn-primary" href="index.html">Back to Home</a>
-  <a class="btn btn-ghost" href="courses.html">Browse Courses</a>
+  <div class="num" data-reveal="scale">404</div>
+  <h1 style="font-size:clamp(1.7rem,2vw + .8rem,2.4rem);margin:.6rem 0" data-reveal style="--d:150ms">This page took a wrong turn</h1>
+  <p class="lead" style="margin:0 auto 1.6rem" data-reveal>The page you are looking for does not exist or has moved.</p>
+  <div class="cta-row" style="justify-content:center" data-reveal>
+    <a class="btn btn-accent" href="index.html">Back to Home</a>
+    <a class="btn btn-ghost" href="courses.html">Browse Courses</a>
+  </div>
 </div></main>
 <div id="site-footer"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/config.js"></script>
 <script src="assets/js/common.js"></script>
+<script src="assets/js/motion.js"></script>
 </body>
 </html>

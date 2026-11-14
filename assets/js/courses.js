@@ -1,5 +1,6 @@
 (async function () {
-  const { sb, esc, pub, reveal } = window.BCTI;
+  const { sb, esc, pub, icon, ph } = window.BCTI;
+  const motion = window.BCTI.motion;
   await window.BCTI.ready;
   const list = document.getElementById('list'), chips = document.getElementById('chips'), q = document.getElementById('q');
   let courses = [], cat = 'All';
@@ -29,7 +30,7 @@
     const skills = (c.skills || []).filter(Boolean);
     return `
     <article class="card course-card" id="${esc(c.slug)}">
-      <div class="course-img">${c.image_path ? `<img src="${esc(pub(c.image_path))}" alt="${esc(c.name)} course at Bendre Computer Typing Institute" loading="lazy">` : '⌨'}</div>
+      <div class="course-img">${c.image_path ? `<img src="${esc(pub(c.image_path))}" alt="${esc(c.name)} course at Bendre Computer Typing Institute" loading="lazy">` : ph(c.name)}</div>
       <div class="course-body">
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           ${c.category ? `<span class="tag">${esc(c.category)}</span>` : ''}
@@ -37,7 +38,7 @@
         </div>
         <h3>${esc(c.name)}</h3>
         <p style="color:var(--muted)">${esc(c.short_description || '')}</p>
-        <div class="meta">${c.duration ? `<span>⏱ ${esc(c.duration)}</span>` : ''}${c.fee ? `<span>₹ ${esc(c.fee)}</span>` : ''}</div>
+        <div class="meta">${c.duration ? `<span>${icon('clock')}${esc(c.duration)}</span>` : ''}${c.fee ? `<span>₹ ${esc(c.fee)}</span>` : ''}</div>
         <div class="details" id="d-${esc(c.id)}">
           ${c.full_description ? `<p>${esc(c.full_description)}</p>` : ''}
           ${skills.length ? `<p style="margin-top:8px"><b>Skills covered</b></p><ul>${skills.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>` : ''}
@@ -59,8 +60,8 @@
       (cat === 'All' || c.category === cat) &&
       (!t || [c.name, c.short_description, c.category, ...(c.skills || [])].join(' ').toLowerCase().includes(t)));
     list.innerHTML = rows.length ? rows.map(card).join('') :
-      `<div class="empty" style="grid-column:1/-1"><div class="big">🔎</div><p>${courses.length ? 'No courses match your search.' : 'Courses will be listed here soon. Please <a href="contact.html"><u>contact us</u></a> for details.'}</p></div>`;
-    reveal();
+      `<div class="empty" style="grid-column:1/-1"><span class="big">${icon('search')}</span><p>${courses.length ? 'No courses match your search.' : 'Courses will be listed here soon. Please <a href="contact.html"><u>contact us</u></a> for details.'}</p></div>`;
+    if (motion) motion.refresh(list.parentElement);
   }
 
   list.addEventListener('click', (e) => {

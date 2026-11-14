@@ -1,5 +1,7 @@
 (async function () {
-  const { sb, esc, pub, monthLabel, reveal } = window.BCTI;
+  const { sb, esc, pub, monthLabel, icon, ph } = window.BCTI;
+  const motion = window.BCTI.motion;
+  document.querySelectorAll('[data-back]').forEach((s) => { s.outerHTML = icon('back'); });
   await window.BCTI.ready;
   const $ = (id) => document.getElementById(id);
   const listView = $('list-view'), batchView = $('batch-view'), grid = $('batches');
@@ -38,8 +40,8 @@
       (!t || `${b.name} ${b.courses?.name || ''} ${monthLabel(b.batch_month)}`.toLowerCase().includes(t)));
     renderTimeline(rows);
     grid.innerHTML = rows.length ? rows.map((b) => `
-      <a class="batch-card reveal" href="?batch=${esc(b.id)}" data-open="${esc(b.id)}">
-        <div class="batch-cover">${b.cover_path ? `<img src="${esc(pub(b.cover_path))}" alt="${esc(b.name)} batch cover photo" loading="lazy">` : '🎓'}</div>
+      <a class="batch-card" href="?batch=${esc(b.id)}" data-open="${esc(b.id)}">
+        <div class="batch-cover">${b.cover_path ? `<img src="${esc(pub(b.cover_path))}" alt="${esc(b.name)} batch cover photo" loading="lazy">` : ph(b.name)}</div>
         <div class="batch-info">
           <div class="when">${esc(monthLabel(b.batch_month))}</div>
           <h3>${esc(b.name)}</h3>
@@ -47,8 +49,8 @@
           <span class="btn btn-ghost btn-sm" style="margin-top:12px">View Gallery</span>
         </div>
       </a>`).join('') :
-      `<div class="empty" style="grid-column:1/-1"><div class="big">📸</div><p>${batches.length ? 'No batches match your filters.' : 'No batch galleries have been published yet. Please check back soon.'}</p></div>`;
-    reveal();
+      `<div class="empty" style="grid-column:1/-1"><span class="big">${icon('image')}</span><p>${batches.length ? 'No batches match your filters.' : 'No batch galleries have been published yet. Please check back soon.'}</p></div>`;
+    if (motion) motion.refresh(grid.parentElement);
   }
 
   document.addEventListener('click', (e) => {
@@ -83,14 +85,14 @@
       photos = data || [];
     } catch (e) { $('photos').innerHTML = '<div class="empty">Photos could not be loaded.</div>'; return; }
     shown = 0; $('photos').innerHTML = '';
-    if (!photos.length) { $('photos').innerHTML = '<div class="empty"><div class="big">🖼️</div><p>Photos for this batch will be added soon.</p></div>'; return; }
+    if (!photos.length) { $('photos').innerHTML = `<div class="empty"><span class="big">${icon('image')}</span><p>Photos for this batch will be added soon.</p></div>`; return; }
     more();
   }
 
   function more() {
     const slice = photos.slice(shown, shown + PAGE);
     $('photos').insertAdjacentHTML('beforeend', slice.map((p, i) => `
-      <button class="m-item" data-i="${shown + i}" aria-label="Open photo${p.caption ? ': ' + esc(p.caption) : ''}">
+      <button class="m-item" data-reveal="scale" style="--i:${Math.min(i % 6, 5)}" data-i="${shown + i}" aria-label="Open photo${p.caption ? ': ' + esc(p.caption) : ''}">
         <img src="${esc(pub(p.thumb_path))}" alt="${esc(p.caption || (current.name + ' photo'))}" loading="lazy">
         ${p.caption ? `<span class="cap">${esc(p.caption)}</span>` : ''}
       </button>`).join(''));
