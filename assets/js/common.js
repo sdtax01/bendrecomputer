@@ -105,7 +105,7 @@
       <a class="skip" href="#main">Skip to content</a>
       <header class="site-header"><div class="container nav">
         <a class="logo" href="index.html" aria-label="${esc(c.institute_name)} home">
-          <span class="logo-mark logo-mark--img"><img src="assets/images/bendre-institute-mark.png" alt="" width="52" height="61" decoding="async"></span>
+          <img class="logo-img" src="assets/img/logo-icon.webp" srcset="assets/img/logo-icon-sm.webp 150w, assets/img/logo-icon.webp 300w" sizes="3rem" alt="" width="50" height="60">
           <span>Bendre<small>Computer Typing Institute</small></span></a>
         <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="navlinks"><span></span><span></span><span></span></button>
         <ul class="nav-links" id="navlinks">${links}
