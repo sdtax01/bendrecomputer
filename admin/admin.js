@@ -138,7 +138,7 @@
     ['profile', 'Admin Profile']
   ];
   function shell() {
-    const items = NAV.filter((n) => !n[2] || me.role === 'admin');
+    const items = NAV.slice(0, 5).concat(EXT.nav || [], NAV.slice(5)).filter((n) => !n[2] || me.role === 'admin');
     app.innerHTML = `
     <div class="topbar"><b>Bendre Admin</b><button id="menu">Menu</button></div>
     <div class="adm">
@@ -162,7 +162,7 @@
     currentView = v;
     document.querySelectorAll('#side nav button').forEach((b) => b.classList.toggle('on', b.dataset.v === v));
     V().innerHTML = '<p>Loading…</p>';
-    ({ overview, courses, batches, gallery, enquiries, contact: () => settings('contact'), content: contentView, seo: () => settings('seo'), profile }[v])(arg).catch(fail);
+    ({ overview, courses, batches, gallery, enquiries, contact: () => settings('contact'), content: contentView, seo: () => settings('seo'), profile, ...(EXT.views || {}) }[v])(arg).catch(fail);
     window.scrollTo({ top: 0 });
   }
 
@@ -532,7 +532,13 @@
     });
   }
 
+  // extension point used by admin-students.js (students, fees, attendance, material, assignments, certificates)
+  const EXT = (window.BCTI_ADMIN_EXT = window.BCTI_ADMIN_EXT || { nav: [], views: {} });
+  EXT.api = { sb, esc, $, toast, fail, modal, uid, go, V, checkFile, resize, get me() { return me; }, get current() { return currentView; } };
+
   sb.auth.onAuthStateChange((ev) => { if (ev === 'SIGNED_OUT' && me) { me = null; showLogin(); } });
   window.addEventListener('unhandledrejection', (e) => console.error(e.reason));
-  boot().catch((e) => showLogin('Could not connect to Supabase: ' + (e && e.message ? e.message : e) + '. Check assets/js/config.js and your internet connection.'));
+  // start after every script on the page has loaded, so extension modules can register their menu items first
+  const start = () => boot().catch((e) => showLogin('Could not connect to Supabase: ' + (e && e.message ? e.message : e) + '. Check assets/js/config.js and your internet connection.'));
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
