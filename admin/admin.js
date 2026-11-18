@@ -422,17 +422,24 @@
   /* ---------- enquiries ---------- */
   const STATUSES = ['New', 'Contacted', 'Follow-up Required', 'Admission Confirmed', 'Closed'];
   async function enquiries() {
-    const { data, error } = await sb.from('admission_enquiries').select('*').order('created_at', { ascending: false }).limit(2000);
+    const [{ data, error }, { data: linked }] = await Promise.all([
+      sb.from('admission_enquiries').select('*').order('created_at', { ascending: false }).limit(2000),
+      sb.from('students').select('id,enquiry_id,reg_no').not('enquiry_id', 'is', null)]);
     if (error) throw error;
+    const stuBy = {}; (linked || []).forEach((x) => { stuBy[x.enquiry_id] = x; });
+    const picked = new Set();
     const courses = [...new Set(data.map((r) => r.course_name).filter(Boolean))];
-    V().innerHTML = `<div class="bar"><div><h1>Admission Enquiries</h1><p class="sub" style="margin:0"><span id="cnt"></span></p></div><button class="btn btn-primary" id="exp">Export CSV (opens in Excel)</button></div>
+    V().innerHTML = `<div class="bar"><div><h1>Admission Enquiries</h1><p class="sub" style="margin:0"><span id="cnt"></span></p></div><div class="row-actions" style="align-items:center">
+      <label class="check" style="margin:0"><input type="checkbox" id="selall"> Select all</label>
+      <button class="btn btn-primary" id="bulk" disabled>Bulk Finalize Admission</button>
+      <button class="btn btn-primary" id="exp">Export CSV (opens in Excel)</button></div></div>
     <div class="panel"><div class="filters">
       <input class="input" id="s" type="search" placeholder="Search name or mobile…" aria-label="Search">
       <select class="input" id="fc"><option value="">All courses</option>${courses.map((c) => `<option>${esc(c)}</option>`).join('')}</select>
       <select class="input" id="fs"><option value="">All statuses</option>${STATUSES.map((s) => `<option>${s}</option>`).join('')}</select>
       <select class="input" id="fk"><option value="">Admission + contact</option><option value="admission">Admission enquiries</option><option value="contact">Contact messages</option></select>
       <input class="input" id="d1" type="date" aria-label="From date"><input class="input" id="d2" type="date" aria-label="To date"></div>
-      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Ref / Date</th><th>Student</th><th>Mobile</th><th>Course</th><th>Details</th><th>Status</th><th>Follow-up notes</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>`;
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th style="width:2rem"></th><th>Ref / Date</th><th>Student</th><th>Mobile</th><th>Course</th><th>Details</th><th>Status</th><th>Follow-up notes</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>`;
     let rows = data;
     const fmt = (d) => new Date(d).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
     const wa = (r) => { const n = (r.whatsapp || r.mobile).replace(/\D/g, ''); return `https://wa.me/91${n}?text=${encodeURIComponent(`Hello ${r.student_name}, this is Bendre Computer Typing Institute regarding your enquiry (${r.ref_no}).`)}`; };
@@ -443,6 +450,7 @@
         && (!d1 || new Date(r.created_at) >= new Date(d1 + 'T00:00:00')) && (!d2 || new Date(r.created_at) <= new Date(d2 + 'T23:59:59')));
       $('#cnt').textContent = `${rows.length} of ${data.length} shown`;
       $('#tb').innerHTML = rows.map((r) => `<tr>
+        <td>${r.kind === 'admission' ? `<input type="checkbox" data-pick="${r.id}" aria-label="Select ${esc(r.student_name)}" ${picked.has(r.id) ? 'checked' : ''}>` : ''}</td>
         <td><b>${esc(r.ref_no)}</b><div class="hint">${esc(fmt(r.created_at))}</div>${r.kind === 'contact' ? '<span class="pill draft">Contact</span>' : ''}</td>
         <td><b>${esc(r.student_name)}</b><div class="hint">${esc(r.guardian_name ? 'Guardian: ' + r.guardian_name : '')}</div></td>
         <td><a href="tel:${esc(r.mobile)}">${esc(r.mobile)}</a>${r.whatsapp ? `<div class="hint">WA: ${esc(r.whatsapp)}</div>` : ''}${r.email ? `<div class="hint">${esc(r.email)}</div>` : ''}</td>
@@ -450,8 +458,61 @@
         <td style="max-width:15rem"><div class="hint">${esc([r.qualification, r.preferred_timing].filter(Boolean).join(' · '))}</div>${esc(r.message || '')}</td>
         <td><select class="input" data-st="${r.id}" style="min-width:9.5rem;padding:.5rem">${STATUSES.map((s) => `<option ${s === r.status ? 'selected' : ''}>${s}</option>`).join('')}</select></td>
         <td><textarea class="input" rows="2" data-nt="${r.id}" style="min-width:11rem;padding:.5rem" placeholder="Add a note…">${esc(r.follow_up_notes)}</textarea></td>
-        <td><a class="btn btn-sm" style="background:#25d366;color:#fff" href="${esc(wa(r))}" target="_blank" rel="noopener">WhatsApp</a></td></tr>`).join('') || '<tr><td colspan="8">No enquiries match.</td></tr>';
+        <td><div class="row-actions" style="flex-direction:column;align-items:stretch">
+          ${stuBy[r.id] && r.status === 'Admission Confirmed' ? `<span class="pill ok" title="Student created">✔ ${esc(stuBy[r.id].reg_no)}</span><button class="btn btn-ghost btn-sm" data-stu="${stuBy[r.id].id}">View student</button>`
+            : `<button class="btn btn-primary btn-sm" data-fin="${r.id}">Finalize Admission</button>`}
+          <a class="btn btn-sm" style="background:#25d366;color:#fff" href="${esc(wa(r))}" target="_blank" rel="noopener">WhatsApp</a>
+          <button class="btn btn-danger btn-sm" data-del="${r.id}">Delete Enquiry</button></div></td></tr>`).join('') || '<tr><td colspan="9">No enquiries match.</td></tr>';
+      syncPick();
     }
+    const pickable = () => rows.filter((r) => r.kind === 'admission' && !(stuBy[r.id] && r.status === 'Admission Confirmed'));
+    function syncPick() {
+      const n = pickable().filter((r) => picked.has(r.id)).length, all = pickable().length;
+      $('#bulk').disabled = !n; $('#bulk').textContent = n ? `Bulk Finalize Admission (${n})` : 'Bulk Finalize Admission';
+      $('#selall').checked = all > 0 && n === all; $('#selall').indeterminate = n > 0 && n < all;
+    }
+    $('#selall').addEventListener('change', (e) => { pickable().forEach((r) => (e.target.checked ? picked.add(r.id) : picked.delete(r.id))); filter(); });
+    async function finalizeOne(r) {
+      const run = async (dob, email) => {
+        const { data: res, error: er } = await sb.rpc('finalize_admission', { p_enquiry: r.id, p_dob: dob || null, p_email: email || null });
+        if (er) throw er;
+        toast(`Admission finalized · Reg. ${res.reg_no}${res.enrolled ? ' · enrolled in ' + res.course : ''}`); go('enquiries');
+      };
+      if (stuBy[r.id]) { if (!confirm(`Finalize admission for ${r.student_name}?\nStudent ${stuBy[r.id].reg_no} will be activated${r.course_name ? ' and enrolled in ' + r.course_name : ''}.`)) return; return run().catch(fail); }
+      const m = modal(`<h2>Finalize admission</h2><p class="sub" style="margin:0 0 1rem"><b>${esc(r.student_name)}</b> · ${esc(r.course_name || 'no course selected')}<br>This enquiry has no date of birth${r.email ? '' : ' / email'} on file. They are needed to create the student and the registration number.</p>
+        <form id="ff"><div class="fgrid"><div class="field"><label>Date of birth *</label><input class="input" type="date" name="dob" required max="${new Date().toISOString().slice(0, 10)}"></div>
+        <div class="field"><label>Email * <small>(student login ID)</small></label><input class="input" type="email" name="email" ${r.email ? '' : 'required'} value="${esc(r.email)}"></div></div>
+        <div class="modal-actions"><button type="button" class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" type="submit">Finalize admission</button></div></form>`);
+      $('#ff', m.el).addEventListener('submit', async (e) => { e.preventDefault(); const b = $('button[type=submit]', e.target); b.disabled = true;
+        try { await run(e.target.dob.value, e.target.email.value.trim()); m.close(); } catch (er) { fail(er); b.disabled = false; } });
+    }
+    $('#tb').addEventListener('click', async (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.stu) return go('studentDetail', b.dataset.stu);
+      if (b.dataset.fin) return finalizeOne(data.find((x) => x.id === b.dataset.fin));
+      if (b.dataset.del) {
+        const r = data.find((x) => x.id === b.dataset.del);
+        if (!confirm(`Delete the enquiry from ${r.student_name} (${r.ref_no}) permanently?\n\nIf this person has not been admitted yet, their student record is removed as well. Students who are already enrolled keep their record. This cannot be undone.`)) return;
+        const { data: res, error: er } = await sb.rpc('delete_enquiry', { p_id: r.id }); if (er) return fail(er);
+        picked.delete(r.id); toast(res && res.student_deleted ? 'Enquiry and its student record deleted' : 'Enquiry deleted'); go('enquiries');
+      }
+    });
+    $('#tb').addEventListener('change', (e) => { const id = e.target.dataset.pick; if (!id) return; e.target.checked ? picked.add(id) : picked.delete(id); syncPick(); });
+    $('#bulk').addEventListener('click', async (e) => {
+      const ids = pickable().filter((r) => picked.has(r.id)).map((r) => r.id); if (!ids.length) return;
+      if (!confirm(`Finalize admission for ${ids.length} selected enquir${ids.length === 1 ? 'y' : 'ies'}?\n\nA student record and registration number will be created for each, and each is enrolled in the course they enquired about. Enquiries without a date of birth will be skipped so you can finalize them one by one.`)) return;
+      const btn = e.target; btn.disabled = true; btn.textContent = 'Finalizing…';
+      try {
+        const { data: res, error: er } = await sb.rpc('finalize_admissions', { p_ids: ids }); if (er) throw er;
+        const ok = res.filter((x) => x.ok), bad = res.filter((x) => !x.ok), nm = (id) => data.find((x) => x.id === id)?.student_name || '';
+        const m = modal(`<h2>Bulk finalize complete</h2><p class="sub" style="margin:0 0 .8rem"><b style="color:var(--ok,#1a7f45)">${ok.length} admitted</b>${bad.length ? ` · <b style="color:var(--err)">${bad.length} need attention</b>` : ''}</p>
+          ${ok.length ? `<div class="panel" style="background:#f4faf6"><b>Registered</b><ul style="margin:.4rem 0 0 1.1rem">${ok.map((x) => `<li>${esc(nm(x.id))} — <b>${esc(x.reg_no)}</b></li>`).join('')}</ul></div>` : ''}
+          ${bad.length ? `<div class="panel" style="background:#fdf3f3"><b>Not finalized</b><ul style="margin:.4rem 0 0 1.1rem">${bad.map((x) => `<li>${esc(nm(x.id))} — ${esc(x.error)}</li>`).join('')}</ul></div>` : ''}
+          <div class="modal-actions"><button class="btn btn-primary" data-close>Done</button></div>`);
+        m.el.parentElement.addEventListener('click', (ev) => { if (ev.target.closest('[data-close]') || ev.target === m.el.parentElement) go('enquiries'); });
+        ok.forEach((x) => picked.delete(x.id));
+      } catch (er) { fail(er); btn.disabled = false; syncPick(); }
+    });
     ['s', 'fc', 'fs', 'fk', 'd1', 'd2'].forEach((id) => $('#' + id).addEventListener('input', filter));
     $('#tb').addEventListener('change', async (e) => {
       const id = e.target.dataset.st || e.target.dataset.nt; if (!id) return;
