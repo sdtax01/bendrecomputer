@@ -105,10 +105,11 @@
       <a class="skip" href="#main">Skip to content</a>
       <header class="site-header"><div class="container nav">
         <a class="logo" href="index.html" aria-label="${esc(c.institute_name)} home">
-          <img class="logo-img" src="assets/img/logo-icon.webp" srcset="assets/img/logo-icon-sm.webp 150w, assets/img/logo-icon.webp 300w" sizes="3rem" alt="" width="50" height="60">
+          <span class="logo-mark logo-mark--img"><img src="assets/images/bendre-institute-mark.png" alt="" width="52" height="61" decoding="async"></span>
           <span>Bendre<small>Computer Typing Institute</small></span></a>
         <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="navlinks"><span></span><span></span><span></span></button>
         <ul class="nav-links" id="navlinks">${links}
+          <li><a class="nav-student" href="student/">Student Login</a></li>
           <li><a class="btn btn-accent btn-sm nav-cta" href="admissions.html">Enquire Now</a></li></ul>
       </div></header>`;
 
@@ -124,7 +125,7 @@
             <li data-c-wrap="email" ${c.email ? '' : 'hidden'}><a data-c="email" href="mailto:${esc(c.email)}">${esc(c.email)}</a></li>
           </ul></div>
         </div>
-        <div class="foot-bottom"><span>© ${new Date().getFullYear()} <span data-c="institute_name">${esc(c.institute_name)}</span>. All rights reserved.</span><a href="admin/">Staff login</a></div>
+        <div class="foot-bottom"><span>© ${new Date().getFullYear()} <span data-c="institute_name">${esc(c.institute_name)}</span>. All rights reserved.</span><span><a href="student/">Student login</a> · <a href="admin/">Staff login</a></span></div>
       </div></footer>`;
 
     // Floating WhatsApp + mobile sticky CTA

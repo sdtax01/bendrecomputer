@@ -1,4 +1,11 @@
 (async function () {
+  // hero entrance: start once the page (incl. the logo image) has loaded; CSS failsafe covers a JS failure
+  (function () {
+    const hero = document.getElementById('hero');
+    if (!hero) return;
+    const go = () => hero.classList.add('hero-ready');
+    if (document.readyState === 'complete') go(); else window.addEventListener('load', go, { once: true });
+  })();
   const { sb, esc, pub, monthLabel, icon, ph } = window.BCTI;
   const $ = (id) => document.getElementById(id);
   const motion = window.BCTI.motion;

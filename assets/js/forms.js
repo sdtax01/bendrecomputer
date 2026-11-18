@@ -23,16 +23,21 @@
     if (required.includes('guardian_name') && v.guardian_name.trim().length < 2) errs.guardian_name = 'Please enter the parent / guardian name.';
     if (!MOBILE.test(norm(v.mobile))) errs.mobile = 'Enter a valid 10-digit Indian mobile number (starting with 6–9).';
     if (v.whatsapp.trim() && !MOBILE.test(norm(v.whatsapp))) errs.whatsapp = 'Enter a valid WhatsApp number or leave it blank.';
-    if (v.email.trim() && !EMAIL.test(v.email.trim())) errs.email = 'Enter a valid email address or leave it blank.';
+    if (required.includes('email') && !v.email.trim()) errs.email = 'Email is required — it will be your student login ID.';
+    else if (v.email.trim() && !EMAIL.test(v.email.trim())) errs.email = 'Enter a valid email address or leave it blank.';
+    if (required.includes('dob')) {
+      const d = new Date(v.dob + 'T00:00:00'), now = new Date();
+      if (!v.dob || isNaN(d) || d > new Date(now.getFullYear() - 3, now.getMonth(), now.getDate()) || d < new Date('1940-01-01T00:00:00')) errs.dob = 'Please enter a valid date of birth.';
+    }
     if (required.includes('course_id') && !v.course_id) errs.course_id = 'Please choose a course.';
     if (required.includes('message') && v.message.trim().length < 5) errs.message = 'Please write a short message.';
     if (!v.consent) errs.consent = 'Please allow us to contact you about this enquiry.';
-    ['student_name', 'guardian_name', 'mobile', 'whatsapp', 'email', 'course_id', 'message', 'consent'].forEach((n) => setErr(form, n, errs[n]));
+    ['student_name', 'guardian_name', 'mobile', 'whatsapp', 'email', 'dob', 'course_id', 'message', 'consent'].forEach((n) => setErr(form, n, errs[n]));
     return errs;
   }
 
   window.BCTI.enquiryForm = function (form, opts) {
-    const { kind, required, onSuccess } = opts;
+    const { kind, required, onSuccess, admission } = opts;
     let busy = false;
     form.noValidate = true;
     form.addEventListener('input', (e) => { const f = e.target.closest('[data-f]'); if (f) setErr(form, f.dataset.f, ''); });
@@ -42,7 +47,7 @@
       const g = (n) => (form.elements[n] ? form.elements[n].value : '');
       const v = {
         student_name: g('student_name'), guardian_name: g('guardian_name'), mobile: g('mobile'), whatsapp: g('whatsapp'),
-        email: g('email'), course_id: g('course_id'), preferred_timing: g('preferred_timing'),
+        email: g('email'), dob: g('dob'), course_id: g('course_id'), preferred_timing: g('preferred_timing'),
         qualification: g('qualification'), message: g('message'), consent: form.elements.consent.checked
       };
       const errs = validate(form, v, required);
@@ -54,6 +59,15 @@
       const btn = form.querySelector('button[type=submit]'); const label = btn.textContent;
       btn.disabled = true; btn.textContent = 'Submitting…';
       try {
+        if (admission) {   // admission form: creates the enquiry AND the student record + registration number
+          const { data, error } = await window.BCTI.sb.rpc('submit_admission', {
+            p_student_name: v.student_name, p_guardian_name: v.guardian_name || null, p_mobile: v.mobile, p_whatsapp: v.whatsapp || null,
+            p_email: v.email, p_dob: v.dob, p_course_id: v.course_id || null, p_preferred_timing: v.preferred_timing || null,
+            p_qualification: v.qualification || null, p_message: v.message || null, p_consent: v.consent
+          });
+          if (error) throw error;
+          return onSuccess(data.ref_no, v, data.reg_no);
+        }
         const { data, error } = await window.BCTI.sb.rpc('submit_enquiry', {
           p_student_name: v.student_name, p_guardian_name: v.guardian_name || null, p_mobile: v.mobile,
           p_whatsapp: v.whatsapp || null, p_email: v.email || null, p_course_id: v.course_id || null,
@@ -65,7 +79,7 @@
       } catch (err) {
         busy = false; btn.disabled = false; btn.textContent = label;
         const m = String(err.message || '');
-        window.BCTI.toast(/valid|required|short|long|Invalid/i.test(m) ? m : 'Sorry, we could not submit your enquiry. Please try again or call us.', true);
+        window.BCTI.toast(/valid|required|short|long|Invalid|already registered/i.test(m) ? m : 'Sorry, we could not submit your enquiry. Please try again or call us.', true);
       }
     });
   };
