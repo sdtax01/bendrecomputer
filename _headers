@@ -4,3 +4,5 @@
   Referrer-Policy: strict-origin-when-cross-origin
 /admin/*
   X-Robots-Tag: noindex
+/student/*
+  X-Robots-Tag: noindex

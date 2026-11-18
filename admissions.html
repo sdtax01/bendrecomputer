@@ -30,7 +30,8 @@
           <div class="field" data-f="guardian_name"><label for="guardian_name">Parent / Guardian Name <span class="req">*</span></label><input class="input" id="guardian_name" name="guardian_name" maxlength="100"><div class="err" role="alert"></div></div>
           <div class="field" data-f="mobile"><label for="mobile">Mobile Number <span class="req">*</span></label><input class="input" id="mobile" name="mobile" type="tel" inputmode="numeric" maxlength="16" placeholder="10-digit mobile number" autocomplete="tel"><div class="err" role="alert"></div></div>
           <div class="field" data-f="whatsapp"><label for="whatsapp">WhatsApp Number <small>(optional)</small></label><input class="input" id="whatsapp" name="whatsapp" type="tel" inputmode="numeric" maxlength="16"><div class="err" role="alert"></div></div>
-          <div class="field" data-f="email"><label for="email">Email Address <small>(optional)</small></label><input class="input" id="email" name="email" type="email" maxlength="120" autocomplete="email"><div class="err" role="alert"></div></div>
+          <div class="field" data-f="email"><label for="email">Email Address <span class="req">*</span> <small>(your student login ID)</small></label><input class="input" id="email" name="email" type="email" maxlength="120" autocomplete="email"><div class="err" role="alert"></div></div>
+          <div class="field" data-f="dob"><label for="dob">Date of Birth <span class="req">*</span></label><input class="input" id="dob" name="dob" type="date" autocomplete="bday"><div class="err" role="alert"></div></div>
           <div class="field" data-f="course_id"><label for="course_id">Course Interested In <span class="req">*</span></label><select class="input" id="course_id" name="course_id"><option value="">Select a course</option></select><div class="err" role="alert"></div></div>
           <div class="field" data-f="preferred_timing"><label for="preferred_timing">Preferred Batch / Timing</label><input class="input" id="preferred_timing" name="preferred_timing" maxlength="100" placeholder="e.g. Morning, Evening"></div>
           <div class="field" data-f="qualification"><label for="qualification">Educational Qualification</label>
@@ -64,14 +65,16 @@
   }
   window.BCTI.enquiryForm(form, {
     kind: 'admission',
-    required: ['student_name', 'guardian_name', 'course_id'],
-    onSuccess: (ref, v) => {
+    required: ['student_name', 'guardian_name', 'course_id', 'email', 'dob'],
+    admission: true,
+    onSuccess: (ref, v, reg) => {
       const wa = window.BCTI.waLink(S.contact, `Hello, I submitted an admission enquiry. My reference number is ${ref}.`);
       document.getElementById('card').innerHTML = `
         <div class="success"><div class="tick" aria-hidden="true">${window.BCTI.icon('check')}</div>
           <h2>Enquiry received</h2>
           <p class="lead" style="margin:.8rem auto 0">Thank you for your interest in Bendre Computer Typing Institute! Your admission enquiry has been received. Our team will contact you soon.</p>
           <div class="refno">Reference: ${esc(ref)}</div>
+          ${reg ? `<div class="refno" style="margin-top:.8rem;border-color:var(--orange)">Your Registration No.: <b>${esc(reg)}</b></div><p style="margin:.8rem auto 0;max-width:34rem;font-size:.95rem;color:var(--muted)">Please note this number. Once the institute confirms your admission, your <b>student login</b> (login ID: ${esc(v.email)}) will be created and the password shared with you.</p>` : ''}
           <p style="margin-top:1.5rem;display:flex;gap:.7rem;justify-content:center;flex-wrap:wrap"><a class="btn btn-ghost" href="${esc(wa)}" target="_blank" rel="noopener">Message us on WhatsApp</a>
           <a class="btn btn-primary" href="index.html">Back to Home</a></p></div>`;
       window.scrollTo({ top: 0, behavior: 'smooth' });
