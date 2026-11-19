@@ -132,30 +132,33 @@
     const certs = done.filter((e) => e.certificate_no);
     const tasks = D.asg.map((a) => ({ a, st: asgStatus(a) }));
     const pending = tasks.filter((t) => t.st.k === 'Pending' || t.st.k === 'Overdue');
-    V().innerHTML = `<h1>Welcome, ${esc(ST.full_name.split(' ')[0])}</h1><p class="sub">Your courses, certificates and tasks at a glance.</p>
-    <div class="stats">
-      <div class="stat"><b>${active.length}</b><span>Active courses</span></div>
-      <div class="stat"><b>${done.length}</b><span>Completed courses</span></div>
-      <div class="stat"><b>${certs.length}</b><span>Certificates</span></div>
-      <div class="stat ${pending.some((t) => t.st.k === 'Overdue') ? 'warn' : ''}"><b>${pending.length}</b><span>Pending tasks</span></div></div>
-    <div class="cols"><div>
-      <div class="panel"><h3>Active courses</h3><div class="list">${active.map((e) => {
+    const I = (k) => (window.DASH ? window.DASH.ico(k) : '');
+    const overall = attPct(D.att), hour = new Date().getHours(), hi = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    const nextDue = pending.filter((t) => t.a.due_date).sort((x, y) => String(x.a.due_date).localeCompare(String(y.a.due_date)))[0];
+    const stats = [['bookopen', 'Active courses', active.length, ''], ['check', 'Overall attendance', overall === null ? '—' : overall + '%', ''], ['clip', 'Pending tasks', pending.length, pending.some((t) => t.st.k === 'Overdue') ? 'warn' : ''], ['award', 'Certificates', certs.length, '']];
+    V().innerHTML = `<div class="d-hero"><div class="d-welcome"><h1>${hi}, <em>${esc(ST.full_name.split(' ')[0])}!</em></h1><p>Keep learning, keep growing. Your courses, certificates and tasks at a glance.</p>
+        <div class="d-cta"><button class="d-btn" data-go="assignments">${I('clip')} My assignments</button><button class="d-btn" data-go="material">${I('bookopen')} Study material</button></div></div>
+      <div class="d-side"><small>${I('clock')}Reg. No.</small><b>${esc(ST.reg_no)}</b><div class="d-sub">${nextDue ? 'Next due: ' + esc(nextDue.a.title) + ' · ' + fmt(nextDue.a.due_date) : 'No pending deadlines 🎉'}</div></div></div>
+    <div class="d-stats">${stats.map(([ic, l, n, w], i) => `<div class="d-stat c${i + 1} ${w}"><span class="d-ico">${I(ic)}</span><div><span class="d-n">${n}</span><span class="d-l">${l}</span></div></div>`).join('')}</div>
+    <div class="d-grid">
+      <div class="d-card"><div class="d-head"><h3>Active courses</h3><button class="d-link" data-go="attendance">Attendance →</button></div><div class="list">${active.map((e) => {
         const p = attPct(D.att.filter((r) => r.course_id === e.course_id));
         return `<div class="item"><div><b>${esc(e.courses?.name)}</b><small>Started ${fmt(e.start_date)}${e.courses?.duration ? ' · ' + esc(e.courses.duration) : ''}</small></div>
         <div style="min-width:9rem"><small>Attendance ${p === null ? '—' : p + '%'}</small><div class="bar"><i style="width:${p || 0}%"></i></div></div></div>`;
-      }).join('') || '<p class="empty">No active courses right now.</p>'}</div></div>
-      <div class="panel"><h3>Completed courses &amp; certificates</h3><div class="list">${done.map((e) => `<div class="item"><div><b>${esc(e.courses?.name)}</b>
+      }).join('') || '<p class="d-empty">No active courses right now.</p>'}</div></div>
+      <div class="d-card"><div class="d-head"><h3>Overall attendance</h3></div><div class="d-ringbox"><div class="d-ring" style="--p:${overall || 0}"><b>${overall === null ? '—' : overall + '%'}</b></div>
+        <p><strong>${D.att.length} day${D.att.length === 1 ? '' : 's'} recorded</strong>Present ${D.att.filter((r) => r.status === 'Present').length} · Absent ${D.att.filter((r) => r.status === 'Absent').length} · Leave ${D.att.filter((r) => r.status === 'Leave').length}</p></div></div></div>
+    <div class="d-grid three">
+      <div class="d-card"><div class="d-head"><h3>My tasks</h3><button class="d-link" data-go="assignments">View all →</button></div>
+        <div class="d-list">${pending.slice(0, 5).map((t) => `<div class="d-row"><span class="d-ico">${I('clip')}</span><div><b>${esc(t.a.title)}</b><small>${esc(t.a.courses?.name)} · Due ${fmt(t.a.due_date)}</small></div><span class="d-tag ${t.st.k === 'Overdue' ? 'bad' : 'warn'}">${t.st.k}</span></div>`).join('') || '<p class="d-empty">You are all caught up. 🎉</p>'}</div>
+        <div class="d-mini"><div><b>${pending.length}</b><span>Pending</span></div><div><b>${tasks.filter((t) => /Submitted/.test(t.st.k)).length}</b><span>Submitted</span></div><div><b>${tasks.filter((t) => t.st.k === 'Reviewed').length}</b><span>Reviewed</span></div></div></div>
+      <div class="d-card"><div class="d-head"><h3>My learning</h3></div>${active.length ? `<div class="d-bars">${active.map((e) => { const p = attPct(D.att.filter((r) => r.course_id === e.course_id)); return `<div class="d-bar"><span>${p === null ? '—' : p + '%'}</span><i style="height:${Math.max(p || 0, 3)}%"></i><small>${esc(e.courses?.name)}</small></div>`; }).join('')}</div>` : '<p class="d-empty">Your course progress will appear here.</p>'}</div>
+      <div class="d-card"><div class="d-head"><h3>Quick actions</h3></div><div class="d-quick">
+        <button data-go="material">${I('download')}Download study material</button><button data-go="assignments">${I('upload')}Submit assignment</button><button data-go="attendance">${I('check')}Check attendance</button><button data-go="fees">${I('wallet')}View my fees</button></div></div></div>
+    <div class="d-card" style="margin-bottom:1.2rem"><div class="d-head"><h3>Completed courses &amp; certificates</h3></div><div class="list">${done.map((e) => `<div class="item"><div><b>${esc(e.courses?.name)}</b>
         <small>Completed ${fmt(e.completed_on)}${e.grade ? ' · Grade ' + esc(e.grade) : ''}${e.certificate_no ? ' · ' + esc(e.certificate_no) : ''}</small></div>
         ${e.certificate_no ? `<div class="row-actions" style="display:flex;gap:.4rem;flex-wrap:wrap"><button class="btn btn-primary btn-sm" data-cert="${e.id}" data-k="pdf">Download Certificate</button><button class="btn btn-ghost btn-sm" data-cert="${e.id}" data-k="png">PNG</button></div>`
-          : '<span class="chip pend">Certificate being prepared</span>'}</div>`).join('') || '<p class="empty">Completed courses and certificates will appear here.</p>'}</div></div>
-    </div><div>
-      <div class="panel"><h3>Tasks</h3>
-        <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:1rem">
-          <div class="stat"><b>${pending.length}</b><span>Pending</span></div>
-          <div class="stat"><b>${tasks.filter((t) => /Submitted/.test(t.st.k)).length}</b><span>Submitted</span></div>
-          <div class="stat"><b>${tasks.filter((t) => t.st.k === 'Reviewed').length}</b><span>Reviewed</span></div></div>
-        <div class="list">${pending.slice(0, 5).map((t) => `<div class="item"><div><b>${esc(t.a.title)}</b><small>${esc(t.a.courses?.name)} · Due ${fmt(t.a.due_date)}</small></div><span class="chip ${t.st.cls}">${t.st.k}</span></div>`).join('') || '<p class="empty">You are all caught up. 🎉</p>'}</div>
-        ${pending.length ? '<p style="margin-top:.9rem"><button class="btn btn-ghost btn-sm" data-go="assignments">Open assignments</button></p>' : ''}</div></div></div>`;
+          : '<span class="chip pend">Certificate being prepared</span>'}</div>`).join('') || '<p class="d-empty">Completed courses and certificates will appear here.</p>'}</div></div>`;
     V().querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
     V().querySelectorAll('[data-cert]').forEach((b) => b.addEventListener('click', () => downloadCert(b, b.dataset.cert, b.dataset.k)));
   }
