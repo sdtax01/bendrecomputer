@@ -9,7 +9,7 @@
     app.innerHTML = '<div class="login-wrap"><div class="login-card"><h1>Setup needed</h1><p class="lead" style="font-size:1rem">Add your Supabase URL and anon key in <code>assets/js/config.js</code>, then reload this page.</p></div></div>';
     return;
   }
-  const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+  const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, { auth: { storageKey: 'bcti-staff-auth', storage: window.sessionStorage } });
   const BUCKET = 'gallery';
   const pub = (p) => (p ? sb.storage.from(BUCKET).getPublicUrl(p).data.publicUrl : '');
   const monthLabel = (d) => { if (!d) return ''; const [y, m] = String(d).split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); };
@@ -123,8 +123,8 @@
     if (!session) return showLogin();
     user = session.user;
     const { data, error } = await sb.from('admin_users').select('*').eq('user_id', user.id).maybeSingle();
-    if (error) { await sb.auth.signOut(); return showLogin('Signed in, but the database could not be read: ' + error.message + ' — run schema.sql in the Supabase SQL Editor first.'); }
-    if (!data) { await sb.auth.signOut(); return showLogin('Signed in, but this user is not in the admin_users table yet. Run the "insert into public.admin_users" SQL in the Supabase SQL Editor, then try again.'); }
+    if (error) { await sb.auth.signOut({ scope: 'local' }); return showLogin('Signed in, but the database could not be read: ' + error.message + ' — run schema.sql in the Supabase SQL Editor first.'); }
+    if (!data) { await sb.auth.signOut({ scope: 'local' }); return showLogin('Signed in, but this user is not in the admin_users table yet. Run the "insert into public.admin_users" SQL in the Supabase SQL Editor, then try again.'); }
     me = data;
     shell();
     go('overview');
@@ -153,7 +153,7 @@
     $('#side').addEventListener('click', async (e) => {
       const b = e.target.closest('button[data-v]'); if (!b) return;
       $('#side').classList.remove('open');
-      if (b.dataset.v === 'logout') { await sb.auth.signOut(); me = null; return showLogin(); }
+      if (b.dataset.v === 'logout') { await sb.auth.signOut({ scope: 'local' }); me = null; return showLogin(); }
       go(b.dataset.v);
     });
   }
