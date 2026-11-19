@@ -167,17 +167,58 @@
   }
 
   /* ---------- overview ---------- */
+  const ago = (t) => { const m = Math.max(0, Math.round((Date.now() - new Date(t)) / 60000)); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' hr ago' : Math.round(m / 1440) + ' day' + (m >= 2880 ? 's' : '') + ' ago'; };
+  function areaChart(labels, vals) {
+    const W = 520, H = 230, L = 34, R = 14, T = 26, B = 30, max = Math.max(4, Math.ceil(Math.max(...vals) / 4) * 4);
+    const x = (i) => L + (W - L - R) * (vals.length === 1 ? .5 : i / (vals.length - 1)), y = (v) => T + (H - T - B) * (1 - v / max);
+    const P = vals.map((v, i) => [x(i), y(v)]);
+    let d = `M${P[0][0]},${P[0][1]}`;
+    for (let i = 0; i < P.length - 1; i++) { const p0 = P[i - 1] || P[i], p1 = P[i], p2 = P[i + 1], p3 = P[i + 2] || p2;
+      d += ` C${p1[0] + (p2[0] - p0[0]) / 6},${p1[1] + (p2[1] - p0[1]) / 6} ${p2[0] - (p3[0] - p1[0]) / 6},${p2[1] - (p3[1] - p1[1]) / 6} ${p2[0]},${p2[1]}`; }
+    const grid = [0, 1, 2, 3, 4].map((k) => { const v = max * k / 4, yy = y(v); return `<line class="gl" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 8}" y="${yy + 4}" text-anchor="end">${Math.round(v)}</text>`; }).join('');
+    return `<svg class="d-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Enquiries per month"><defs><linearGradient id="dg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f46e5" stop-opacity=".28"/><stop offset="1" stop-color="#4f46e5" stop-opacity="0"/></linearGradient></defs>${grid}
+      <path class="ar" d="${d} L${P[P.length - 1][0]},${H - B} L${P[0][0]},${H - B} Z"/><path class="ln" d="${d}"/>
+      ${P.map((p, i) => `<circle class="pt" cx="${p[0]}" cy="${p[1]}" r="4"/><text class="vl" x="${p[0]}" y="${p[1] - 10}" text-anchor="middle">${vals[i]}</text><text x="${p[0]}" y="${H - 9}" text-anchor="middle">${esc(labels[i])}</text>`).join('')}</svg>`;
+  }
   async function overview() {
     const { data, error } = await sb.rpc('dashboard_counts'); if (error) throw error;
-    const cards = [['Total Courses', data.courses], ['Active Batches', data.active_batches], ['Total Gallery Photos', data.photos], ['New Admission Enquiries', data.new_enquiries], ['Confirmed Admissions', data.confirmed]];
-    V().innerHTML = `<h1>Dashboard</h1><p class="sub">Welcome back. Changes you make here appear on the live website immediately.</p>
-    <div class="stats">${cards.map(([l, n]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('')}</div>
-    <div class="panel"><h3>Quick actions</h3><div class="row-actions" style="margin-top:12px">
-      <button class="btn btn-primary btn-sm" data-go="batches">Create a batch</button>
-      <button class="btn btn-ghost btn-sm" data-go="gallery">Upload photos</button>
-      <button class="btn btn-ghost btn-sm" data-go="enquiries">View enquiries</button>
-      <a class="btn btn-ghost btn-sm" href="../" target="_blank" rel="noopener">Open website</a></div></div>`;
+    /* extra figures for the dashboard look — all best-effort; a missing table never breaks the page */
+    const now = new Date(), iso = (d) => d.toISOString().slice(0, 10);
+    const since = new Date(now.getFullYear(), now.getMonth() - 5, 1), mStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const ok = (p) => Promise.resolve(p).then((r) => (r && !r.error ? r : null), () => null);
+    const [enqAll, enqNew, studs, pays, asg] = await Promise.all([
+      ok(sb.from('admission_enquiries').select('created_at').gte('created_at', since.toISOString()).limit(3000)),
+      ok(sb.from('admission_enquiries').select('student_name,course_name,kind,created_at').order('created_at', { ascending: false }).limit(4)),
+      ok(sb.from('students').select('full_name,reg_no,created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(4)),
+      ok(sb.from('fee_payments').select('amount,created_at,students(full_name)').gte('paid_on', iso(mStart)).order('created_at', { ascending: false }).limit(500)),
+      ok(sb.from('assignments').select('title,due_date,courses(name)').gte('due_date', iso(now)).order('due_date').limit(4))]);
+    const I = (k) => (window.DASH ? window.DASH.ico(k) : '');
+    const cards = [['book', 'Total Courses', data.courses], ['users', 'Active Batches', data.active_batches], ['image', 'Total Gallery Photos', data.photos], ['inbox', 'New Admission Enquiries', data.new_enquiries], ['award', 'Confirmed Admissions', data.confirmed]];
+    if (studs && studs.count != null) cards.push(['cap', 'Total Students', studs.count]);
+    if (pays) cards.push(['wallet', 'Fees This Month', '₹' + pays.data.reduce((a, p) => a + Number(p.amount || 0), 0).toLocaleString('en-IN')]);
+    const months = Array.from({ length: 6 }, (_, i) => new Date(now.getFullYear(), now.getMonth() - 5 + i, 1));
+    const counts = months.map((m) => (enqAll ? enqAll.data.filter((r) => { const d = new Date(r.created_at); return d.getFullYear() === m.getFullYear() && d.getMonth() === m.getMonth(); }).length : 0));
+    const act = [];
+    if (enqNew) enqNew.data.forEach((r) => act.push({ t: r.created_at, c: 'c4', i: 'inbox', h: (r.kind === 'admission' ? 'Admission request: ' : 'New enquiry: ') + r.student_name, s: r.course_name || 'General enquiry' }));
+    if (studs) studs.data.forEach((r) => act.push({ t: r.created_at, c: 'c1', i: 'cap', h: 'New student registered', s: r.full_name + ' · ' + r.reg_no }));
+    if (pays) pays.data.slice(0, 4).forEach((r) => act.push({ t: r.created_at, c: 'c3', i: 'wallet', h: 'Fee payment received', s: '₹' + Number(r.amount).toLocaleString('en-IN') + (r.students ? ' · ' + r.students.full_name : '') }));
+    act.sort((p, q) => new Date(q.t) - new Date(p.t));
+    const name = (me.full_name || user.email.split('@')[0] || 'Admin').split(' ')[0];
+    const goBtns = [['batches', 'Create a batch', 'users'], ['gallery', 'Upload photos', 'image'], ['enquiries', 'View enquiries', 'inbox']];
+    if (EXT.views && EXT.views.students) goBtns.push(['students', 'Manage students', 'cap']);
+    V().innerHTML = `<div class="d-hero"><div class="d-welcome"><h1>Welcome back, <em>${esc(name)}!</em></h1><p>Changes you make here appear on the live website immediately. ✨</p>
+        <div class="d-cta"><a class="d-btn" href="../" target="_blank" rel="noopener">Open website ${I('up')}</a></div></div>
+      <div class="d-side"><small>${I('clock')}<span id="dday"></span></small><div class="d-clock" id="dclock"></div><div class="d-sub">${esc(me.role === 'admin' ? 'Administrator' : 'Staff')} dashboard</div></div></div>
+    <div class="d-stats">${cards.map(([ic, l, n], i) => `<div class="d-stat c${(i % 6) + 1}"><span class="d-ico">${I(ic)}</span><div><span class="d-n">${n}</span><span class="d-l">${l}</span></div></div>`).join('')}</div>
+    <div class="d-grid">
+      <div class="d-card"><div class="d-head"><h3>Enquiries overview</h3><span class="hint">Last 6 months</span></div>${enqAll ? areaChart(months.map((m) => m.toLocaleDateString('en-IN', { month: 'short' })), counts) : '<p class="d-empty">Chart will appear once enquiries are recorded.</p>'}</div>
+      <div class="d-card"><div class="d-head"><h3>Recent activity</h3><button class="d-link" data-go="enquiries">View all →</button></div><div class="d-list">${act.slice(0, 5).map((r) => `<div class="d-row"><span class="d-ico">${I(r.i)}</span><div><b>${esc(r.h)}</b><small>${esc(r.s)} · ${ago(r.t)}</small></div></div>`).join('') || '<p class="d-empty">No recent activity yet.</p>'}</div></div></div>
+    <div class="d-grid">
+      <div class="d-card"><div class="d-head"><h3>Quick actions</h3></div><div class="d-quick">${goBtns.map(([k, l, ic]) => `<button data-go="${k}">${I(ic)}${l}</button>`).join('')}</div></div>
+      <div class="d-card"><div class="d-head"><h3>Upcoming assignment deadlines</h3>${EXT.views && EXT.views.assignments ? '<button class="d-link" data-go="assignments">View all →</button>' : ''}</div><div class="d-list">${asg && asg.data.length ? asg.data.map((a) => { const d = new Date(a.due_date + 'T00:00:00'); return `<div class="d-row"><div class="d-date" style="flex:none"><b>${d.getDate()}</b><span>${d.toLocaleDateString('en-IN', { month: 'short' })}</span></div><div><b>${esc(a.title)}</b><small>${esc(a.courses ? a.courses.name : '')}</small></div></div>`; }).join('') : '<p class="d-empty">No upcoming deadlines.</p>'}</div></div></div>`;
     V().querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
+    const tick = () => { const c = document.getElementById('dclock'); if (!c) return clearInterval(tm); const n = new Date(); c.textContent = n.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }); document.getElementById('dday').textContent = n.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); };
+    const tm = setInterval(tick, 15000); tick();
   }
 
   /* ---------- courses ---------- */
