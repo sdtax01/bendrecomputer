@@ -67,15 +67,17 @@
   }
 
   async function loadAll() {
-    const [enr, att, mat, asg, sub, set] = await Promise.all([
+    const [enr, att, mat, asg, sub, set, fee, pay] = await Promise.all([
       sb.from('student_courses').select('*,courses(name,duration)').eq('student_id', ST.id).order('created_at'),
       sb.from('attendance').select('*').eq('student_id', ST.id).order('att_date', { ascending: false }),
       sb.from('study_materials').select('*,courses(name)').order('created_at', { ascending: false }),
       sb.from('assignments').select('*,courses(name)').order('due_date'),
       sb.from('assignment_submissions').select('*').eq('student_id', ST.id),
-      sb.from('website_settings').select('value').eq('key', 'contact').maybeSingle()]);
+      sb.from('website_settings').select('value').eq('key', 'contact').maybeSingle(),
+      sb.from('enrollment_fees').select('*').eq('student_id', ST.id),
+      sb.from('fee_payments').select('*').eq('student_id', ST.id).order('paid_on', { ascending: false })]);
     [enr, att, mat, asg, sub].forEach((r) => { if (r.error) throw r.error; });
-    D = { enr: enr.data || [], att: att.data || [], mat: mat.data || [], asg: asg.data || [], sub: sub.data || [] };
+    D = { enr: enr.data || [], att: att.data || [], mat: mat.data || [], asg: asg.data || [], sub: sub.data || [], fee: fee.data || [], pay: pay.data || [], feeErr: !!(fee.error || pay.error) };
     institute = (set.data && set.data.value) || {};
     await loadPhoto();
   }
@@ -85,7 +87,7 @@
   }
 
   /* ---------- shell ---------- */
-  const NAV = [['dashboard', 'Dashboard'], ['attendance', 'Attendance'], ['material', 'Study Material'], ['assignments', 'Assignments'], ['settings', 'Settings']];
+  const NAV = [['dashboard', 'Dashboard'], ['attendance', 'Attendance'], ['material', 'Study Material'], ['assignments', 'Assignments'], ['fees', 'My Fees'], ['settings', 'Settings']];
   const initials = () => ST.full_name.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
   const avatar = () => (photoUrl ? `<img src="${esc(photoUrl)}" alt="Your photo">` : esc(initials()));
   function shell() {
@@ -93,7 +95,7 @@
     <div class="backdrop" id="bd"></div>
     <div class="st"><aside class="side" id="side" aria-label="Student navigation">
       <div class="me"><div class="avatar" id="sav">${avatar()}</div><div><b>${esc(ST.full_name)}</b><span>Reg. ${esc(ST.reg_no)}</span></div></div>
-      <nav>${NAV.map(([k, l], i) => `<button data-v="${k}"><span class="n">${i + 1}</span>${l}</button>`).join('')}<button class="out" data-v="logout"><span class="n">6</span>Log out</button></nav>
+      <nav>${NAV.map(([k, l], i) => `<button data-v="${k}"><span class="n">${i + 1}</span>${l}</button>`).join('')}<button class="out" data-v="logout"><span class="n">${NAV.length + 1}</span>Log out</button></nav>
       <div class="site"><a href="../">← Back to website</a></div></aside>
       <main class="main" id="view" tabindex="-1"></main></div>`;
     const side = $('#side'), bd = $('#bd');
@@ -107,7 +109,7 @@
     });
   }
   const V = () => $('#view');
-  const VIEWS = { dashboard, attendance, material, assignments, settings };
+  const VIEWS = { dashboard, attendance, material, assignments, fees, settings };
   function go(v) {
     if (!VIEWS[v]) v = 'dashboard';
     view = v; if (location.hash.slice(1) !== v) history.replaceState(null, '', '#' + v);
@@ -191,6 +193,20 @@
         `<tr><td>${fmt(r.att_date)}</td><td>${esc(cname(r.course_id))}</td><td><span class="chip ${r.status === 'Present' ? 'ok' : r.status === 'Absent' ? 'bad' : 'pend'}">${r.status}</span></td></tr>`).join('')}</tbody></table>` : '<p class="empty">No attendance has been recorded yet.</p>';
     };
     $('#fc').addEventListener('change', draw); $('#fm').addEventListener('change', draw); draw();
+  }
+
+  /* ---------- my fees (read-only) ---------- */
+  const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  function fees() {
+    if (D.feeErr) { V().innerHTML = '<h1>My Fees</h1><p class="sub">Fee details are not available right now. Please ask the institute office.</p>'; return; }
+    const total = D.fee.reduce((a, f) => a + Number(f.total_fee), 0), paid = D.fee.reduce((a, f) => a + Number(f.paid), 0), due = total - paid;
+    const cname = (id) => D.enr.find((e) => e.id === id)?.courses?.name || '';
+    V().innerHTML = `<h1>My Fees</h1><p class="sub">Your course fees and payments recorded by the institute. This page is view-only.</p>
+    <div class="stats"><div class="stat"><b>${inr(total)}</b><span>Total fees</span></div><div class="stat"><b>${inr(paid)}</b><span>Paid</span></div><div class="stat"><b style="color:${due > 0 ? 'var(--err,#b42318)' : 'inherit'}">${inr(due)}</b><span>Balance due</span></div></div>
+    <div class="panel tbl-wrap"><h3 style="margin:0 0 .6rem">Course-wise</h3>${D.fee.length ? `<table class="tbl"><thead><tr><th>Course</th><th>Fee</th><th>Paid</th><th>Balance</th></tr></thead><tbody>${D.fee.map((f) =>
+      `<tr><td>${esc(cname(f.enrollment_id))}</td><td>${inr(f.total_fee)}</td><td>${inr(f.paid)}</td><td>${Number(f.balance) > 0 ? `<span class="chip bad">${inr(f.balance)}</span>` : '<span class="chip ok">Paid</span>'}</td></tr>`).join('')}</tbody></table>` : '<p class="empty">No fee details have been added yet.</p>'}</div>
+    <div class="panel tbl-wrap"><h3 style="margin:0 0 .6rem">Payment history</h3>${D.pay.length ? `<table class="tbl"><thead><tr><th>Date</th><th>Receipt</th><th>Course</th><th>Mode</th><th>Amount</th></tr></thead><tbody>${D.pay.map((p) =>
+      `<tr><td>${fmt(p.paid_on)}</td><td>${esc(p.receipt_no)}</td><td>${esc(cname(p.enrollment_id))}</td><td>${esc(p.mode)}</td><td><b>${inr(p.amount)}</b></td></tr>`).join('')}</tbody></table>` : '<p class="empty">No payments recorded yet.</p>'}</div>`;
   }
 
   /* ---------- study material ---------- */
