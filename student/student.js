@@ -9,7 +9,7 @@
     app.innerHTML = '<div class="login-wrap"><div class="login-card"><h1>Setup needed</h1><p class="lead" style="font-size:1rem">The website is not connected to its database yet. Please contact the institute.</p></div></div>';
     return;
   }
-  const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+  const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, { auth: { storageKey: 'bcti-student-auth', storage: window.sessionStorage } });
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(16).slice(2));
   const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   const fmt = (d) => (d ? (window.BCTI_CERT ? window.BCTI_CERT.fmt(d) : d) : '—');
@@ -60,7 +60,7 @@
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return showLogin();
     const { data, error } = await sb.from('students').select('*').eq('user_id', session.user.id).maybeSingle();
-    if (error || !data) { await sb.auth.signOut(); return showLogin(error ? 'Could not load your account: ' + error.message : 'This account is not a student account.'); }
+    if (error || !data) { await sb.auth.signOut({ scope: 'local' }); return showLogin(error ? 'Could not load your account: ' + error.message : 'This account is not a student account.'); }
     ST = data;
     try { await loadAll(); } catch (e) { fail(e); }
     shell(); go(location.hash.slice(1) || 'dashboard');
@@ -102,7 +102,7 @@
     bd.addEventListener('click', () => toggle(false));
     side.addEventListener('click', async (e) => {
       const b = e.target.closest('button[data-v]'); if (!b) return; toggle(false);
-      if (b.dataset.v === 'logout') { await sb.auth.signOut(); ST = null; location.hash = ''; return showLogin(); }
+      if (b.dataset.v === 'logout') { await sb.auth.signOut({ scope: 'local' }); ST = null; location.hash = ''; return showLogin(); }
       go(b.dataset.v);
     });
   }
