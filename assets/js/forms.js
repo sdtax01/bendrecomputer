@@ -40,10 +40,16 @@
     const { kind, required, onSuccess, admission } = opts;
     let busy = false;
     form.noValidate = true;
+    // spam trap: a hidden field real visitors never see or fill; bots usually fill every field
+    const trap = document.createElement('input');
+    trap.type = 'text'; trap.name = 'website_url'; trap.tabIndex = -1; trap.autocomplete = 'off'; trap.setAttribute('aria-hidden', 'true');
+    trap.style.cssText = 'position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none';
+    form.appendChild(trap);
     form.addEventListener('input', (e) => { const f = e.target.closest('[data-f]'); if (f) setErr(form, f.dataset.f, ''); });
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (busy) return;                       // prevents duplicate submission
+      if (trap.value) { busy = true; return onSuccess('BCTI-' + Date.now().toString().slice(-8), {}, ''); }   // bot: pretend success, send nothing
       const g = (n) => (form.elements[n] ? form.elements[n].value : '');
       const v = {
         student_name: g('student_name'), guardian_name: g('guardian_name'), mobile: g('mobile'), whatsapp: g('whatsapp'),
@@ -79,7 +85,7 @@
       } catch (err) {
         busy = false; btn.disabled = false; btn.textContent = label;
         const m = String(err.message || '');
-        window.BCTI.toast(/valid|required|short|long|Invalid|already registered/i.test(m) ? m : 'Sorry, we could not submit your enquiry. Please try again or call us.', true);
+        window.BCTI.toast(/valid|required|short|long|Invalid|already registered|Too many/i.test(m) ? m : 'Sorry, we could not submit your enquiry. Please try again or call us.', true);
       }
     });
   };
