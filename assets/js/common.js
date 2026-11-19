@@ -2,7 +2,7 @@
 (function () {
   const cfg = window.BCTI_CONFIG || {};
   const configured = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
-  const sb = configured ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY) : null;
+  const sb = configured ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, { auth: { storageKey: 'bcti-public-auth', persistSession: false, autoRefreshToken: false } }) : null;
 
   // Details supplied by the institute; used until the database settings load.
   const DEFAULTS = {
