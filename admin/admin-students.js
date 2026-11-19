@@ -263,10 +263,21 @@
       <form id="cf"><div class="fgrid"><div class="field"><label>Completion date *</label><input class="input" type="date" name="d" required value="${enr.completed_on || today()}" min="${enr.start_date}"></div>
       <div class="field"><label>Grade / result (optional)</label><input class="input" name="g" maxlength="20" placeholder="e.g. A, 85%, Distinction" value="${esc(enr.grade)}"></div></div>
       <p class="hint">${st.photo_path ? 'The student’s uploaded photo will be placed on the certificate.' : '⚠ This student has not uploaded a photo yet — the certificate will show an empty photo box. They can upload it in Settings, then you can download the certificate again.'}</p>
+      <div id="fw"></div>
       <div class="modal-actions"><button type="button" class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" type="submit">Generate certificate</button></div></form>`);
+    let balance = 0;
+    if (!enr.certificate_no) sb.from('enrollment_fees').select('balance').eq('enrollment_id', enr.id).maybeSingle().then(({ data }) => {
+      balance = Number(data && data.balance) || 0;
+      if (balance > 0) $('#fw', m.el).innerHTML = `<div class="setup-banner" role="alert" style="margin:.8rem 0"><b>Fee balance pending: ${inr(balance)}</b><br><label style="display:flex;gap:.5rem;align-items:center;margin-top:.4rem;font-weight:500"><input type="checkbox" name="due"> Issue the certificate anyway</label></div>`;
+    });
     $('#cf', m.el).addEventListener('submit', (e) => { e.preventDefault(); const f = e.target;
       withBusy($('button[type=submit]', f), 'Generating…', async () => {
-        const { data, error } = await sb.rpc('issue_certificate', { p_enrollment: enr.id, p_completed_on: f.d.value, p_grade: f.g.value || null }); if (error) throw error;
+        const allow = !!(f.due && f.due.checked);
+        if (balance > 0 && !allow) throw new Error('A fee balance of ' + inr(balance) + ' is pending. Collect it, or tick “Issue the certificate anyway”.');
+        const args = { p_enrollment: enr.id, p_completed_on: f.d.value, p_grade: f.g.value || null };
+        let { data, error } = await sb.rpc('issue_certificate', { ...args, p_allow_due: allow });
+        if (error && /PGRST202|schema cache|Could not find the function/i.test((error.code || '') + ' ' + error.message)) ({ data, error } = await sb.rpc('issue_certificate', args));   // older database (v5 SQL not run yet)
+        if (error) throw error;
         await makeCertificate({ ...enr, ...data }, st, 'pdf'); toast('Certificate ' + data.certificate_no + ' generated'); m.close(); done();
       }); });
   }
@@ -313,15 +324,22 @@
         sb.from('attendance').select('*').eq('course_id', c).eq('att_date', d)]);
       if (!guard('attendance')) return;
       const cur = {}; (at || []).forEach((a) => { cur[a.student_id] = a.status; });
+      const fresh = !(at || []).length;   // nothing saved for this date yet: start everyone as Present, teacher only changes the absentees
       const list = (en || []).sort((a, b) => String(a.students?.full_name).localeCompare(String(b.students?.full_name)));
-      $('#area').innerHTML = list.length ? `<div class="panel"><div class="bar"><h3>${list.length} active students · ${fmt(d)}</h3><div class="row-actions"><button class="btn btn-ghost btn-sm" id="allp">All present</button><button class="btn btn-primary btn-sm" id="save">Save attendance</button></div></div>
+      $('#area').innerHTML = list.length ? `<div class="panel"><div class="bar"><h3>${list.length} active students · ${fmt(d)}</h3><div class="row-actions"><button class="btn btn-ghost btn-sm" id="allp">All present</button><button class="btn btn-ghost btn-sm" id="alla">All absent</button><button class="btn btn-primary btn-sm" id="save">Save attendance</button></div></div>
+        <p class="hint" id="acount" aria-live="polite"></p>
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Reg. no</th><th>Student</th><th>Present</th><th>Absent</th><th>Leave</th></tr></thead><tbody>
-        ${list.map((r) => `<tr><td>${esc(r.students?.reg_no)}</td><td><b>${esc(r.students?.full_name)}</b></td>${['Present', 'Absent', 'Leave'].map((s) => `<td><input type="radio" name="r_${r.student_id}" value="${s}" aria-label="${s}" ${cur[r.student_id] === s ? 'checked' : ''}></td>`).join('')}</tr>`).join('')}</tbody></table></div>
-        <p class="hint">Only students you mark are saved. Saving again for the same date updates the earlier entry.</p></div>` : '<div class="panel"><p>No active students are enrolled in this course.</p></div>';
-      const all = $('#allp'); if (all) all.addEventListener('click', () => document.querySelectorAll('#area input[value="Present"]').forEach((i) => { i.checked = true; }));
+        ${list.map((r) => `<tr><td>${esc(r.students?.reg_no)}</td><td><b>${esc(r.students?.full_name)}</b></td>${['Present', 'Absent', 'Leave'].map((s) => `<td><input type="radio" name="r_${r.student_id}" value="${s}" aria-label="${s}" ${(cur[r.student_id] || (fresh ? 'Present' : '')) === s ? 'checked' : ''}></td>`).join('')}</tr>`).join('')}</tbody></table></div>
+        <p class="hint">${fresh ? 'Everyone starts as Present — change only the absent / leave students, then save. ' : 'Showing the saved attendance for this date. '}Saving again for the same date updates the earlier entry.</p></div>` : '<div class="panel"><p>No active students are enrolled in this course.</p></div>';
+      const count = () => { const n = (s) => document.querySelectorAll(`#area input[value="${s}"]:checked`).length, p = n('Present'), a = n('Absent'), l = n('Leave'); const c = $('#acount'); if (c) c.textContent = `Present ${p} · Absent ${a} · Leave ${l} · Not marked ${list.length - p - a - l}`; };
+      const setAll = (s) => { document.querySelectorAll(`#area input[value="${s}"]`).forEach((i) => { i.checked = true; }); count(); };
+      const all = $('#allp'); if (all) all.addEventListener('click', () => setAll('Present'));
+      const alla = $('#alla'); if (alla) alla.addEventListener('click', () => setAll('Absent'));
+      const tb = document.querySelector('#area tbody'); if (tb) tb.addEventListener('change', count); count();
       const sv = $('#save'); if (sv) sv.addEventListener('click', () => withBusy(sv, 'Saving…', async () => {
         const rows = list.map((r) => { const x = document.querySelector(`input[name="r_${r.student_id}"]:checked`); return x ? { student_id: r.student_id, course_id: c, att_date: d, status: x.value } : null; }).filter(Boolean);
         if (!rows.length) throw new Error('Mark at least one student');
+        const left = list.length - rows.length; if (left > 0 && !confirm(left + ' student(s) are not marked and will not be saved. Save anyway?')) return;
         const { error: er } = await sb.from('attendance').upsert(rows, { onConflict: 'student_id,course_id,att_date' }); if (er) throw er;
         toast(`Attendance saved for ${rows.length} students`);
       }));
