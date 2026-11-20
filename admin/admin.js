@@ -93,6 +93,7 @@
 
   /* ---------- auth ---------- */
   function showLogin(msg) {
+    if (window.BCTI_NOTIFY) window.BCTI_NOTIFY.unmount();
     app.innerHTML = `
     <div class="login-wrap"><form class="login-card" id="lf">
       <span class="logo-mark"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg></span>
@@ -153,9 +154,15 @@
     $('#side').addEventListener('click', async (e) => {
       const b = e.target.closest('button[data-v]'); if (!b) return;
       $('#side').classList.remove('open');
-      if (b.dataset.v === 'logout') { await sb.auth.signOut({ scope: 'local' }); me = null; return showLogin(); }
+      if (b.dataset.v === 'logout') { if (window.BCTI_NOTIFY) window.BCTI_NOTIFY.unmount(); await sb.auth.signOut({ scope: 'local' }); me = null; return showLogin(); }
       go(b.dataset.v);
     });
+    /* notification bell (cosmetic add-on; the portal works the same without it) */
+    if (window.BCTI_NOTIFY) window.BCTI_NOTIFY.mount({ sb, audience: 'admin', onOpen: (n, act) => {
+      if (!EXT.views || !EXT.views.notifications) return;
+      if (act === 'item' && n && n.student_id && EXT.views.studentDetail) return go('studentDetail', n.student_id);
+      go('notifications');
+    } });
   }
   const V = () => $('#view');
   function go(v, arg) {

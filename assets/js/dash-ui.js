@@ -25,12 +25,17 @@
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     download: '<path d="M12 3v12M7 11l5 5 5-5M4 20h16"/>',
     upload: '<path d="M12 16V4M7 8l5-5 5 5M4 20h16"/>',
+    bell: '<path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9z"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/>',
+    camera: '<path d="M4 8h3l1.5-2.5h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.4"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 7l8.5 6 8.5-6"/>',
+    key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3"/>',
+    send: '<path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/>',
     dot: '<circle cx="12" cy="12" r="3"/>'
   };
   const MAP = {
     overview: 'grid', dashboard: 'grid', courses: 'book', batches: 'users', gallery: 'image', enquiries: 'inbox', contact: 'phone', content: 'file', seo: 'search',
     profile: 'user', students: 'cap', fees: 'wallet', attendance: 'check', materials: 'folder', material: 'bookopen', assignments: 'clip', certificates: 'award',
-    settings: 'gear', logout: 'out'
+    settings: 'gear', logout: 'out', notifications: 'bell'
   };
   const svg = (k, cls) => `<svg class="di ${cls || ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[k] || P.dot}</svg>`;
   window.DASH = { ico: svg };

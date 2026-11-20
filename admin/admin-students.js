@@ -458,6 +458,93 @@
   }
 
   /* ---------- register ---------- */
-  EXT.nav.push(['students', 'Students'], ['fees', 'Fees'], ['attendance', 'Attendance'], ['materials', 'Study Material'], ['assignments', 'Assignments'], ['certificates', 'Certificates']);
-  Object.assign(EXT.views, { students, studentDetail, fees, attendance, materials, assignments, certificates });
+
+  /* ================= NOTIFICATIONS: send to students + activity log ================= */
+  const TPL = {
+    payment: ['Payment Reminder', 'Hello {name}, your course fee payment is pending. Please pay at the institute office at the earliest.', 'payment'],
+    documents: ['Submit pending documents', 'Hello {name}, please submit your pending documents (ID proof and photo) at the institute office.', 'documents'],
+    assignment: ['Complete your pending assignments', 'Hello {name}, you have pending assignments. Please complete and submit them on time from the Assignments section of your portal.', 'assignment'],
+    custom: ['', '', 'info']
+  };
+  const KIND_LBL = { photo: 'Photo', contact: 'Contact', email: 'Email', address: 'Address', profile: 'Profile', password: 'Password', assignment: 'Assignment', material: 'Study material', payment: 'Payment', certificate: 'Certificate', reminder: 'Reminder', documents: 'Documents', info: 'Message' };
+  const ago = (t) => { const m = Math.max(0, Math.round((Date.now() - new Date(t)) / 60000)); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' hr ago' : Math.round(m / 1440) + ' day(s) ago'; };
+
+  async function notifications(pre) {
+    const [{ data: sts, error: e1 }, { data: crs }] = await Promise.all([
+      sb.from('students').select('id,full_name,reg_no,status').order('full_name').limit(3000),
+      sb.from('courses').select('id,name').order('name')]);
+    if (e1) throw e1;
+    if (!guard('notifications')) return;
+    const students = sts || [];
+    const preSel = typeof pre === 'string' ? [pre] : [];
+    V().innerHTML = `<div class="bar"><div><h1>Notifications</h1><p class="sub" style="margin:0">Send reminders and messages to students — one student or many at once — and see what students have updated.</p></div></div>
+    <div class="d-grid">
+      <form class="panel" id="nf" novalidate>
+        <h3 style="margin-top:0">Send notification</h3>
+        <div class="fgrid">
+          <div class="field"><label for="aud">Send to</label><select class="input" id="aud"><option value="sel">Selected students</option><option value="all">All students (not inactive)</option><option value="course">Students of a course</option></select></div>
+          <div class="field" id="crsw" hidden><label for="crs">Course</label><select class="input" id="crs">${(crs || []).map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>
+          <div class="field"><label for="tpl">Template</label><select class="input" id="tpl"><option value="payment">Payment Reminder</option><option value="documents">Submit pending documents</option><option value="assignment">Complete pending assignments</option><option value="custom">Custom message</option></select></div>
+        </div>
+        <div class="field" id="pickw" style="margin-top:.8rem"><label for="q">Students <span class="hint" id="pickn"></span></label>
+          <input class="input" id="q" placeholder="Search name or registration no." autocomplete="off" style="margin-bottom:.4rem">
+          <div class="d-list" id="pick" style="max-height:15rem;overflow:auto;border:1px solid var(--d-line,#e6e9f5);border-radius:.8rem;padding:.3rem .6rem"></div>
+          <div class="row-actions" style="margin-top:.4rem;display:flex;gap:.5rem"><button type="button" class="btn btn-ghost btn-sm" id="pall">Select shown</button><button type="button" class="btn btn-ghost btn-sm" id="pnone">Clear</button></div></div>
+        <div class="field" style="margin-top:.8rem"><label for="ttl">Title *</label><input class="input" id="ttl" maxlength="120" required></div>
+        <div class="field" style="margin-top:.8rem"><label for="msg">Message <span class="hint">(optional · max 500 · <code>{name}</code> becomes the student's first name)</span></label><textarea class="input" id="msg" rows="4" maxlength="500"></textarea></div>
+        <div class="row-actions" style="margin-top:1rem;display:flex;gap:.8rem;align-items:center;flex-wrap:wrap"><button class="btn btn-primary" id="go" type="submit">Send notification</button><span class="hint" id="cnt"></span></div>
+      </form>
+      <div class="d-card"><div class="d-head"><h3>Student activity</h3><button class="d-link" id="mr" type="button">Mark all read</button></div><div class="d-list" id="act"><p class="d-empty">Loading…</p></div></div>
+    </div>
+    <div class="d-card" style="margin-bottom:1.2rem"><div class="d-head"><h3>Recently sent to students</h3></div><div class="d-list" id="sent"><p class="d-empty">Loading…</p></div></div>`;
+
+    const sel = new Set(preSel); let ids = [];
+    const $$ = (s) => V().querySelector(s), nameOf = Object.fromEntries(students.map((s) => [s.id, s.full_name]));
+    const drawPick = () => {
+      const q = $$('#q').value.trim().toLowerCase();
+      ids = students.filter((s) => !q || (s.full_name + ' ' + s.reg_no).toLowerCase().includes(q)).map((s) => s.id);
+      $$('#pick').innerHTML = ids.slice(0, 300).map((id) => { const s = students.find((x) => x.id === id);
+        return `<label class="d-row" style="cursor:pointer;padding:.35rem 0"><input type="checkbox" data-id="${id}" style="width:auto;flex:none" ${sel.has(id) ? 'checked' : ''}><div><b>${esc(s.full_name)}</b><small>${esc(s.reg_no)} · ${esc(s.status)}</small></div></label>`; }).join('') || '<p class="d-empty">No students found.</p>';
+      $$('#pickn').textContent = `· ${sel.size} selected`;
+    };
+    const recount = async () => { const a = $$('#aud').value; $$('#cnt').textContent = a === 'sel' ? `${sel.size} student(s) selected` : a === 'all' ? `${students.filter((s) => s.status !== 'Inactive').length} student(s)` : ''; };
+    const applyTpl = () => { const t = TPL[$$('#tpl').value]; $$('#ttl').value = t[0]; $$('#msg').value = t[1]; };
+    $$('#pick').addEventListener('change', (e) => { const c = e.target.closest('[data-id]'); if (!c) return; c.checked ? sel.add(c.dataset.id) : sel.delete(c.dataset.id); $$('#pickn').textContent = `· ${sel.size} selected`; recount(); });
+    $$('#q').addEventListener('input', drawPick);
+    $$('#pall').addEventListener('click', () => { ids.forEach((i) => sel.add(i)); drawPick(); recount(); });
+    $$('#pnone').addEventListener('click', () => { sel.clear(); drawPick(); recount(); });
+    $$('#tpl').addEventListener('change', applyTpl);
+    $$('#aud').addEventListener('change', () => { const a = $$('#aud').value; $$('#pickw').hidden = a !== 'sel'; $$('#crsw').hidden = a !== 'course'; recount(); });
+    applyTpl(); drawPick(); recount();
+
+    $$('#nf').addEventListener('submit', (e) => { e.preventDefault();
+      withBusy($$('#go'), 'Sending…', async () => {
+        const a = $$('#aud').value; let list = [];
+        if (a === 'sel') list = [...sel];
+        else if (a === 'all') list = students.filter((s) => s.status !== 'Inactive').map((s) => s.id);
+        else { const { data, error } = await sb.from('student_courses').select('student_id').eq('course_id', $$('#crs').value).eq('status', 'Active'); if (error) throw error; list = [...new Set((data || []).map((r) => r.student_id))]; }
+        if (!list.length) throw new Error(a === 'sel' ? 'Select at least one student' : 'No students found for this selection');
+        const title = $$('#ttl').value.trim(); if (title.length < 2) throw new Error('Please enter a title');
+        if (list.length > 1 && !confirm(`Send this notification to ${list.length} students?`)) return;
+        const { data, error } = await sb.rpc('send_notification', { p_students: list, p_kind: TPL[$$('#tpl').value][2], p_title: title, p_body: $$('#msg').value.trim() || null });
+        if (error) throw error;
+        toast(`Sent to ${data} student${data === 1 ? '' : 's'}`); sel.clear(); drawPick(); recount(); loadLists();
+      }); });
+
+    async function loadLists() {
+      const [act, sent] = await Promise.all([
+        sb.from('notifications').select('*').eq('audience', 'admin').order('created_at', { ascending: false }).limit(25),
+        sb.from('notifications').select('*').eq('audience', 'student').order('created_at', { ascending: false }).limit(25)]);
+      if (!guard('notifications')) return;
+      if (act.error || sent.error) { $$('#act').innerHTML = $$('#sent').innerHTML = '<p class="d-empty">Run schema-update-v7.sql in the Supabase SQL Editor to enable notifications.</p>'; return; }
+      const row = (n, who) => `<div class="d-row" ${n.read_at || who ? '' : 'style="background:#f3f5ff;border-radius:.6rem"'}><span class="d-ico">${window.DASH ? window.DASH.ico(({ photo: 'camera', contact: 'phone', email: 'mail', password: 'key', assignment: 'clip', material: 'folder', payment: 'wallet', certificate: 'award' })[n.kind] || 'bell') : ''}</span><div><b>${esc(n.title)}</b><small>${who ? 'To ' + esc(nameOf[n.student_id] || 'student') + ' · ' : ''}${esc(KIND_LBL[n.kind] || n.kind)} · ${ago(n.created_at)}${who ? (n.read_at ? ' · read' : ' · unread') : ''}</small></div></div>`;
+      $$('#act').innerHTML = act.data.map((n) => row(n, false)).join('') || '<p class="d-empty">No student updates yet.</p>';
+      $$('#sent').innerHTML = sent.data.map((n) => row(n, true)).join('') || '<p class="d-empty">Nothing sent yet.</p>';
+    }
+    $$('#mr').addEventListener('click', async () => { await sb.rpc('mark_notifications_read', { p_ids: null }); loadLists(); if (window.BCTI_NOTIFY) window.BCTI_NOTIFY.refresh(); });
+    loadLists();
+  }
+
+  EXT.nav.push(['students', 'Students'], ['fees', 'Fees'], ['attendance', 'Attendance'], ['materials', 'Study Material'], ['assignments', 'Assignments'], ['certificates', 'Certificates'], ['notifications', 'Notifications']);
+  Object.assign(EXT.views, { students, studentDetail, fees, attendance, materials, assignments, certificates, notifications });
 })();

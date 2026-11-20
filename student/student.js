@@ -38,6 +38,7 @@
 
   /* ---------- login ---------- */
   function showLogin(msg) {
+    if (window.BCTI_NOTIFY) window.BCTI_NOTIFY.unmount();
     app.innerHTML = `<div class="login-wrap"><form class="login-card" id="lf">
       <span class="logo-mark logo-mark--img"><img src="../assets/images/bendre-institute-mark.png" alt="" width="52" height="61"></span>
       <h1>Student sign in</h1><p style="color:var(--muted);margin-bottom:1.2rem">Bendre Computer Typing Institute</p>
@@ -104,9 +105,14 @@
     bd.addEventListener('click', () => toggle(false));
     side.addEventListener('click', async (e) => {
       const b = e.target.closest('button[data-v]'); if (!b) return; toggle(false);
-      if (b.dataset.v === 'logout') { await sb.auth.signOut({ scope: 'local' }); ST = null; location.hash = ''; return showLogin(); }
+      if (b.dataset.v === 'logout') { if (window.BCTI_NOTIFY) window.BCTI_NOTIFY.unmount(); await sb.auth.signOut({ scope: 'local' }); ST = null; location.hash = ''; return showLogin(); }
       go(b.dataset.v);
     });
+    /* notification bell (cosmetic add-on; the portal works the same without it) */
+    if (window.BCTI_NOTIFY) window.BCTI_NOTIFY.mount({ sb, audience: 'student', onOpen: (n) => {
+      const to = { assignment: 'assignments', material: 'material', payment: 'fees', certificate: 'dashboard', documents: 'settings' }[n && n.kind] || 'dashboard';
+      go(to);
+    } });
   }
   const V = () => $('#view');
   const VIEWS = { dashboard, attendance, material, assignments, fees, settings };
@@ -327,7 +333,7 @@
       if (n.length < 8) return toast('Password must be at least 8 characters', true);
       if (n !== $('#cp').value) return toast('The two passwords do not match', true);
       b.disabled = true;
-      try { const { error } = await sb.auth.updateUser({ password: n }); if (error) throw error; toast('Password updated'); e.target.reset(); } catch (er) { fail(er); }
+      try { const { error } = await sb.auth.updateUser({ password: n }); if (error) throw error; toast('Password updated'); e.target.reset(); try { await sb.rpc('student_notify', { p_kind: 'password' }); } catch (x) { /* optional */ } } catch (er) { fail(er); }
       b.disabled = false;
     });
   }

@@ -1,0 +1,45 @@
+/* Notification centre — animated bell + dropdown (loaded after dash-ui.css) */
+.nc{position:fixed;top:.9rem;right:1.5rem;z-index:520;font-family:var(--font-b,system-ui,sans-serif)}
+.nc-bell{position:relative;width:2.8rem;height:2.8rem;border-radius:50%;border:1px solid var(--d-line,#e6e9f5);background:#fff;color:#1a237e;display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 18px rgba(40,52,120,.14);transition:transform .2s,box-shadow .2s,background .2s;transform-origin:50% 8%}
+.nc-bell:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(40,52,120,.2)}
+.nc-bell:focus-visible{outline:.18rem solid #4f46e5;outline-offset:.15rem}
+.nc-bell .di{width:1.35rem;height:1.35rem;transform-origin:50% 10%}
+.nc.open .nc-bell{background:#eef0ff}
+.nc-bell.has::before{content:"";position:absolute;inset:-.2rem;border-radius:50%;border:2px solid rgba(79,70,229,.45);animation:ncPulse 2.4s ease-out infinite;pointer-events:none}
+.nc-bell.ring .di{animation:ncRing 1.1s ease-in-out 2}
+.nc-badge{position:absolute;top:-.25rem;right:-.2rem;min-width:1.25rem;height:1.25rem;padding:0 .3rem;border-radius:99px;background:linear-gradient(135deg,#ff5a5f,#e0245e);color:#fff;font-size:.68rem;font-weight:800;line-height:1.25rem;text-align:center;border:2px solid #fff;animation:ncPop .45s cubic-bezier(.2,1.6,.4,1)}
+.nc-badge[hidden]{display:none}
+.nc-panel{position:absolute;top:3.4rem;right:0;width:23rem;max-width:calc(100vw - 1.4rem);background:#fff;border:1px solid var(--d-line,#e6e9f5);border-radius:1.1rem;box-shadow:0 22px 50px rgba(16,27,61,.22);overflow:hidden;transform-origin:calc(100% - 1.4rem) 0;animation:ncIn .22s cubic-bezier(.2,.9,.3,1)}
+.nc-panel[hidden]{display:none}
+.nc-head,.nc-foot{display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.85rem 1rem}
+.nc-head{border-bottom:1px solid #eef0fa;background:linear-gradient(90deg,#f5f6ff,#fff)}
+.nc-head b{font-size:1rem;color:var(--d-ink,#101b3d)}
+.nc-foot{border-top:1px solid #eef0fa;background:#fafbff}
+.nc-link{background:none;border:0;color:#2563eb;font-weight:700;font-size:.8rem;cursor:pointer;padding:.2rem}
+.nc-link:hover{text-decoration:underline}
+.nc-btn{display:inline-flex;align-items:center;gap:.45rem;border:0;border-radius:.65rem;padding:.5rem .85rem;font-weight:700;font-size:.82rem;color:#fff;background:linear-gradient(90deg,#2f54eb,#4f46e5);cursor:pointer;box-shadow:0 6px 14px rgba(47,84,235,.3)}
+.nc-btn .di{width:1rem;height:1rem}
+.nc-note{font-size:.78rem;color:var(--d-mute,#6b7494)}
+.nc-list{max-height:min(26rem,60vh);overflow-y:auto;overscroll-behavior:contain}
+.nc-item{display:flex;gap:.75rem;align-items:flex-start;width:100%;text-align:left;border:0;border-bottom:1px solid #f0f2fb;background:#fff;padding:.75rem 1rem;cursor:pointer;transition:background .15s;position:relative}
+.nc-item:hover{background:#f5f6ff}
+.nc-item.un{background:#f3f5ff}
+.nc-item.un::after{content:"";position:absolute;right:.9rem;top:1rem;width:.55rem;height:.55rem;border-radius:50%;background:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,.18)}
+.nc-item .d-ico{width:2.4rem;height:2.4rem;border-radius:.75rem;flex:none}
+.nc-item .d-ico .di{width:1.15rem;height:1.15rem}
+.nc-item .c1{background:#eef0ff;color:#4f46e5}.nc-item .c2{background:#e4f1ff;color:#2563eb}.nc-item .c3{background:#e1f8ec;color:#12a15f}.nc-item .c4{background:#fff0dc;color:#e8860c}.nc-item .c5{background:#ffe8ee;color:#e0366b}.nc-item .c6{background:#e9f7fb;color:#0b8aa8}
+.nc-t{display:flex;flex-direction:column;gap:.1rem;min-width:0;padding-right:1rem}
+.nc-t b{font-size:.88rem;color:var(--d-ink,#101b3d);font-weight:700;line-height:1.3}
+.nc-t small{font-size:.8rem;color:var(--d-mute,#6b7494);line-height:1.35;overflow-wrap:anywhere}
+.nc-t em{font-style:normal;font-size:.72rem;color:#8a93b4;margin-top:.15rem}
+.nc-empty{padding:2rem 1rem;text-align:center;color:var(--d-mute,#6b7494);font-size:.9rem;margin:0}
+/* keep page content clear of the bell on desktop */
+@media(min-width:62.01rem){.adm .main,.st .main{padding-top:4.5rem}}
+/* phones: sit in the dark top bar, left of the Menu button */
+@media(max-width:62rem){.nc{top:.38rem;right:5.4rem}.nc-bell{width:2.4rem;height:2.4rem;background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.28);color:#fff;box-shadow:none}.nc.open .nc-bell{background:rgba(255,255,255,.26)}.nc-badge{border-color:#131c5a}
+  .nc-panel{position:fixed;top:3.6rem;left:.6rem;right:.6rem;width:auto;max-width:none;transform-origin:70% 0}}
+@keyframes ncRing{0%,100%{transform:rotate(0)}15%{transform:rotate(16deg)}30%{transform:rotate(-14deg)}45%{transform:rotate(10deg)}60%{transform:rotate(-8deg)}75%{transform:rotate(4deg)}}
+@keyframes ncPulse{0%{transform:scale(.9);opacity:.9}100%{transform:scale(1.5);opacity:0}}
+@keyframes ncPop{0%{transform:scale(0)}100%{transform:scale(1)}}
+@keyframes ncIn{0%{opacity:0;transform:translateY(-.5rem) scale(.96)}100%{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.nc-bell.has::before,.nc-bell.ring .di,.nc-badge,.nc-panel{animation:none}.nc-bell{transition:none}}
