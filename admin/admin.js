@@ -175,26 +175,34 @@
 
   /* ---------- overview ---------- */
   const ago = (t) => { const m = Math.max(0, Math.round((Date.now() - new Date(t)) / 60000)); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' hr ago' : Math.round(m / 1440) + ' day' + (m >= 2880 ? 's' : '') + ' ago'; };
-  function areaChart(labels, vals) {
-    const W = 520, H = 230, L = 34, R = 14, T = 26, B = 30, max = Math.max(4, Math.ceil(Math.max(...vals) / 4) * 4);
-    const x = (i) => L + (W - L - R) * (vals.length === 1 ? .5 : i / (vals.length - 1)), y = (v) => T + (H - T - B) * (1 - v / max);
-    const P = vals.map((v, i) => [x(i), y(v)]);
-    let d = `M${P[0][0]},${P[0][1]}`;
-    for (let i = 0; i < P.length - 1; i++) { const p0 = P[i - 1] || P[i], p1 = P[i], p2 = P[i + 1], p3 = P[i + 2] || p2;
-      d += ` C${p1[0] + (p2[0] - p0[0]) / 6},${p1[1] + (p2[1] - p0[1]) / 6} ${p2[0] - (p3[0] - p1[0]) / 6},${p2[1] - (p3[1] - p1[1]) / 6} ${p2[0]},${p2[1]}`; }
-    const grid = [0, 1, 2, 3, 4].map((k) => { const v = max * k / 4, yy = y(v); return `<line class="gl" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 8}" y="${yy + 4}" text-anchor="end">${Math.round(v)}</text>`; }).join('');
-    return `<svg class="d-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Enquiries per month"><defs><linearGradient id="dg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f46e5" stop-opacity=".28"/><stop offset="1" stop-color="#4f46e5" stop-opacity="0"/></linearGradient></defs>${grid}
-      <path class="ar" d="${d} L${P[P.length - 1][0]},${H - B} L${P[0][0]},${H - B} Z"/><path class="ln" d="${d}"/>
-      ${P.map((p, i) => `<circle class="pt" cx="${p[0]}" cy="${p[1]}" r="4"/><text class="vl" x="${p[0]}" y="${p[1] - 10}" text-anchor="middle">${vals[i]}</text><text x="${p[0]}" y="${H - 9}" text-anchor="middle">${esc(labels[i])}</text>`).join('')}</svg>`;
+  const rupee = (n) => '₹' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  const shortRs = (n) => n >= 1e7 ? (n / 1e7).toFixed(n % 1e7 ? 1 : 0) + 'Cr' : n >= 1e5 ? (n / 1e5).toFixed(n % 1e5 ? 1 : 0) + 'L' : n >= 1e3 ? (n / 1e3).toFixed(n % 1e3 ? 1 : 0) + 'k' : String(Math.round(n));
+  const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');   // local date (not UTC)
+  /* multi-series line chart: series = [{ name, color, vals }] */
+  function lineChart(labels, series) {
+    const W = 760, H = 280, L = 52, R = 16, T = 22, B = 34, n = labels.length;
+    const top = Math.max(...series.flatMap((s) => s.vals), 0), raw = (top || 1000) / 4, mag = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / mag,
+      max = 4 * mag * (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10);
+    const x = (i) => L + (W - L - R) * (n === 1 ? .5 : i / (n - 1)), y = (v) => T + (H - T - B) * (1 - v / max);
+    const path = (vals) => { const P = vals.map((v, i) => [x(i), y(v)]); let d = `M${P[0][0]},${P[0][1]}`;
+      for (let i = 0; i < P.length - 1; i++) { const p0 = P[i - 1] || P[i], p1 = P[i], p2 = P[i + 1], p3 = P[i + 2] || p2;
+        d += ` C${p1[0] + (p2[0] - p0[0]) / 6},${Math.min(H - B, Math.max(T, p1[1] + (p2[1] - p0[1]) / 6))} ${p2[0] - (p3[0] - p1[0]) / 6},${Math.min(H - B, Math.max(T, p2[1] - (p3[1] - p1[1]) / 6))} ${p2[0]},${p2[1]}`; }
+      return { d, P }; };
+    const grid = [0, 1, 2, 3, 4].map((k) => { const v = max * k / 4, yy = y(v); return `<line class="gl" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 8}" y="${yy + 4}" text-anchor="end">₹${shortRs(v)}</text>`; }).join('');
+    const every = Math.ceil(n / 9), xl = labels.map((l, i) => (i % every === 0 || i === n - 1) ? `<text x="${x(i)}" y="${H - 10}" text-anchor="${n > 1 && i === n - 1 ? 'end' : n > 1 && i === 0 ? 'start' : 'middle'}">${esc(l)}</text>` : '').join('');
+    const lines = series.map((s, k) => { const { d, P } = path(s.vals);
+      return `<defs><linearGradient id="bv${k}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${s.color}" stop-opacity=".18"/><stop offset="1" stop-color="${s.color}" stop-opacity="0"/></linearGradient></defs>
+        <path d="${d} L${P[n - 1][0]},${H - B} L${P[0][0]},${H - B} Z" fill="url(#bv${k})"/><path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+        ${P.map((p, i) => `<circle cx="${p[0]}" cy="${p[1]}" r="${n > 40 ? 0 : 3.6}" fill="#fff" stroke="${s.color}" stroke-width="2"/><circle cx="${p[0]}" cy="${p[1]}" r="9" fill="transparent"><title>${esc(labels[i])} — ${esc(s.name)}: ${rupee(s.vals[i])}</title></circle>`).join('')}`; }).join('');
+    return `<svg class="d-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Billed versus collected">${grid}${xl}${lines}</svg>`;
   }
+
   async function overview() {
     const { data, error } = await sb.rpc('dashboard_counts'); if (error) throw error;
     /* extra figures for the dashboard look — all best-effort; a missing table never breaks the page */
-    const now = new Date(), iso = (d) => d.toISOString().slice(0, 10);
-    const since = new Date(now.getFullYear(), now.getMonth() - 5, 1), mStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const now = new Date(), iso = ymd, mStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const ok = (p) => Promise.resolve(p).then((r) => (r && !r.error ? r : null), () => null);
-    const [enqAll, enqNew, studs, pays, asg] = await Promise.all([
-      ok(sb.from('admission_enquiries').select('created_at').gte('created_at', since.toISOString()).limit(3000)),
+    const [enqNew, studs, pays, asg] = await Promise.all([
       ok(sb.from('admission_enquiries').select('student_name,course_name,kind,created_at').order('created_at', { ascending: false }).limit(4)),
       ok(sb.from('students').select('full_name,reg_no,created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(4)),
       ok(sb.from('fee_payments').select('amount,created_at,students(full_name)').gte('paid_on', iso(mStart)).order('created_at', { ascending: false }).limit(500)),
@@ -203,8 +211,6 @@
     const cards = [['book', 'Total Courses', data.courses], ['users', 'Active Batches', data.active_batches], ['image', 'Total Gallery Photos', data.photos], ['inbox', 'New Admission Enquiries', data.new_enquiries], ['award', 'Confirmed Admissions', data.confirmed]];
     if (studs && studs.count != null) cards.push(['cap', 'Total Students', studs.count]);
     if (pays) cards.push(['wallet', 'Fees This Month', '₹' + pays.data.reduce((a, p) => a + Number(p.amount || 0), 0).toLocaleString('en-IN')]);
-    const months = Array.from({ length: 6 }, (_, i) => new Date(now.getFullYear(), now.getMonth() - 5 + i, 1));
-    const counts = months.map((m) => (enqAll ? enqAll.data.filter((r) => { const d = new Date(r.created_at); return d.getFullYear() === m.getFullYear() && d.getMonth() === m.getMonth(); }).length : 0));
     const act = [];
     if (enqNew) enqNew.data.forEach((r) => act.push({ t: r.created_at, c: 'c4', i: 'inbox', h: (r.kind === 'admission' ? 'Admission request: ' : 'New enquiry: ') + r.student_name, s: r.course_name || 'General enquiry' }));
     if (studs) studs.data.forEach((r) => act.push({ t: r.created_at, c: 'c1', i: 'cap', h: 'New student registered', s: r.full_name + ' · ' + r.reg_no }));
@@ -218,12 +224,48 @@
       <div class="d-side"><small>${I('clock')}<span id="dday"></span></small><div class="d-clock" id="dclock"></div><div class="d-sub">${esc(me.role === 'admin' ? 'Administrator' : 'Staff')} dashboard</div></div></div>
     <div class="d-stats">${cards.map(([ic, l, n], i) => `<div class="d-stat c${(i % 6) + 1}"><span class="d-ico">${I(ic)}</span><div><span class="d-n">${n}</span><span class="d-l">${l}</span></div></div>`).join('')}</div>
     <div class="d-grid">
-      <div class="d-card"><div class="d-head"><h3>Enquiries overview</h3><span class="hint">Last 6 months</span></div>${enqAll ? areaChart(months.map((m) => m.toLocaleDateString('en-IN', { month: 'short' })), counts) : '<p class="d-empty">Chart will appear once enquiries are recorded.</p>'}</div>
+      <div class="d-card"><div class="d-head" style="flex-wrap:wrap"><h3>Billed vs Collected</h3>
+        <div class="bvc-ctl"><label>From <input type="date" id="bf" value="${ymd(new Date(now.getFullYear(), now.getMonth() - 5, 1))}"></label><label>To <input type="date" id="bt" value="${ymd(now)}"></label><button type="button" class="d-btn bvc-go" id="bgo">Apply</button></div></div>
+        <div class="bvc-pre"><button type="button" data-p="m">This month</button><button type="button" data-p="3">Last 3 months</button><button type="button" data-p="6">Last 6 months</button><button type="button" data-p="fy">This financial year</button></div>
+        <div class="bvc-sum" id="bsum"></div><div id="bvc"><p class="d-empty">Loading…</p></div>
+        <div class="bvc-leg"><span><i style="background:#4f46e5"></i>Billed</span><span><i style="background:#12b76a"></i>Collected</span><span class="hint" id="bnote"></span></div></div>
       <div class="d-card"><div class="d-head"><h3>Recent activity</h3><button class="d-link" data-go="enquiries">View all →</button></div><div class="d-list">${act.slice(0, 5).map((r) => `<div class="d-row"><span class="d-ico">${I(r.i)}</span><div><b>${esc(r.h)}</b><small>${esc(r.s)} · ${ago(r.t)}</small></div></div>`).join('') || '<p class="d-empty">No recent activity yet.</p>'}</div></div></div>
     <div class="d-grid">
       <div class="d-card"><div class="d-head"><h3>Quick actions</h3></div><div class="d-quick">${goBtns.map(([k, l, ic]) => `<button data-go="${k}">${I(ic)}${l}</button>`).join('')}</div></div>
       <div class="d-card"><div class="d-head"><h3>Upcoming assignment deadlines</h3>${EXT.views && EXT.views.assignments ? '<button class="d-link" data-go="assignments">View all →</button>' : ''}</div><div class="d-list">${asg && asg.data.length ? asg.data.map((a) => { const d = new Date(a.due_date + 'T00:00:00'); return `<div class="d-row"><div class="d-date" style="flex:none"><b>${d.getDate()}</b><span>${d.toLocaleDateString('en-IN', { month: 'short' })}</span></div><div><b>${esc(a.title)}</b><small>${esc(a.courses ? a.courses.name : '')}</small></div></div>`; }).join('') : '<p class="d-empty">No upcoming deadlines.</p>'}</div></div></div>`;
     V().querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
+    /* Billed vs Collected: billed = course fees by enrolment date, collected = payments by payment date */
+    async function loadBvc() {
+      const f = document.getElementById('bf'), t = document.getElementById('bt'), box = document.getElementById('bvc'); if (!f || !box) return;
+      const note = document.getElementById('bnote'); note.textContent = '';
+      if (!f.value || !t.value) { note.textContent = 'Please choose both dates.'; return; }
+      if (f.value > t.value) { note.textContent = '“From” date must be before “To” date.'; return; }
+      const d0 = new Date(f.value + 'T00:00:00'), d1 = new Date(t.value + 'T00:00:00'), days = Math.round((d1 - d0) / 864e5) + 1;
+      if (days > 1830) { note.textContent = 'Please choose a range of 5 years or less.'; return; }
+      box.innerHTML = '<p class="d-empty">Loading…</p>';
+      const [en, py] = await Promise.all([ok(sb.from('student_courses').select('total_fee,start_date').gte('start_date', f.value).lte('start_date', t.value).limit(10000)),
+                                          ok(sb.from('fee_payments').select('amount,paid_on').gte('paid_on', f.value).lte('paid_on', t.value).limit(20000))]);
+      if (!document.getElementById('bvc')) return;
+      if (!en || !py) { box.innerHTML = '<p class="d-empty">Fee data is not available yet.</p>'; return; }
+      const daily = days <= 45, keys = [], labels = [];
+      if (daily) for (let d = new Date(d0); d <= d1; d.setDate(d.getDate() + 1)) { keys.push(ymd(d)); labels.push(d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })); }
+      else for (let d = new Date(d0.getFullYear(), d0.getMonth(), 1); d <= d1; d.setMonth(d.getMonth() + 1)) { keys.push(ymd(d).slice(0, 7)); labels.push(d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })); }
+      const kOf = (ds) => (daily ? ds : ds.slice(0, 7)), idx = Object.fromEntries(keys.map((k, i) => [k, i]));
+      const billed = keys.map(() => 0), coll = keys.map(() => 0);
+      en.data.forEach((r) => { const i = idx[kOf(r.start_date)]; if (i != null) billed[i] += Number(r.total_fee || 0); });
+      py.data.forEach((r) => { const i = idx[kOf(r.paid_on)]; if (i != null) coll[i] += Number(r.amount || 0); });
+      const tb = billed.reduce((a, b) => a + b, 0), tc = coll.reduce((a, b) => a + b, 0);
+      document.getElementById('bsum').innerHTML = `<div><b>${rupee(tb)}</b><span>Billed</span></div><div><b style="color:#0d7a47">${rupee(tc)}</b><span>Collected</span></div><div><b style="color:${tb - tc > 0 ? '#c21d45' : '#0d7a47'}">${rupee(tb - tc)}</b><span>${tb - tc >= 0 ? 'Outstanding' : 'Extra collected'}</span></div>`;
+      box.innerHTML = (tb || tc) ? lineChart(labels, [{ name: 'Billed', color: '#4f46e5', vals: billed }, { name: 'Collected', color: '#12b76a', vals: coll }]) : '<p class="d-empty">No billing or payments in this date range.</p>';
+      note.textContent = daily ? 'Daily view' : 'Monthly view';
+    }
+    const bgo = document.getElementById('bgo'); if (bgo) bgo.addEventListener('click', loadBvc);
+    V().querySelectorAll('.bvc-pre [data-p]').forEach((b) => b.addEventListener('click', () => {
+      const p = b.dataset.p, n2 = new Date(); let a = new Date(n2.getFullYear(), n2.getMonth(), 1);
+      if (p === '3' || p === '6') a = new Date(n2.getFullYear(), n2.getMonth() - (+p - 1), 1);
+      if (p === 'fy') a = new Date(n2.getMonth() >= 3 ? n2.getFullYear() : n2.getFullYear() - 1, 3, 1);
+      document.getElementById('bf').value = ymd(a); document.getElementById('bt').value = ymd(n2); loadBvc(); }));
+    loadBvc();
     const tick = () => { const c = document.getElementById('dclock'); if (!c) return clearInterval(tm); const n = new Date(); c.textContent = n.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }); document.getElementById('dday').textContent = n.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); };
     const tm = setInterval(tick, 15000); tick();
   }
