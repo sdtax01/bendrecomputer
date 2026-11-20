@@ -76,8 +76,8 @@
       <table><tr><td>Student</td><td><b>${esc(st.full_name)}</b></td></tr><tr><td>Registration No.</td><td>${esc(st.reg_no)}</td></tr><tr><td>Course</td><td>${esc(enr.courses?.name || '')}</td></tr>
       <tr><td>Total course fee</td><td>${inr(fees.total)}</td></tr><tr><td>Total paid till date</td><td>${inr(fees.paid)}</td></tr><tr><td>Balance due</td><td>${inr(fees.balance)}</td></tr></table>
       <p class="m" style="margin-top:18px">Amount received</p><div class="big">${inr(pay.amount)}</div>${pay.note ? `<p class="m">${esc(pay.note)}</p>` : ''}
-      <div class="s"><span>Student signature</span><span>Authorised signatory</span></div></div><p style="text-align:center"><button onclick="print()">Print</button></p>`);
-    w.document.close(); setTimeout(() => w.print(), 400);
+      <div class="s"><span>Student signature</span><span>Authorised signatory</span></div></div><p style="text-align:center"><button id="prt">Print</button></p>`);
+    w.document.close(); const pb = w.document.getElementById('prt'); if (pb) pb.addEventListener('click', () => w.print()); setTimeout(() => w.print(), 400);
   }
   const feeOf = (enr, pays) => { const paid = pays.filter((p) => p.enrollment_id === enr.id).reduce((a, p) => a + Number(p.amount), 0); return { total: Number(enr.total_fee || 0), paid, balance: Number(enr.total_fee || 0) - paid }; };
 

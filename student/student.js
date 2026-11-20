@@ -57,12 +57,37 @@
     });
   }
 
+  /* first login with a password set by the institute: the student must choose their own */
+  function forcePasswordChange() {
+    app.innerHTML = `<div class="login-wrap"><form class="login-card" id="fp">
+      <span class="logo-mark logo-mark--img"><img src="../assets/images/bendre-institute-mark.png" alt="" width="52" height="61"></span>
+      <h1>Create your own password</h1><p style="color:var(--muted);margin-bottom:1.2rem">The institute gave you a temporary password. Please choose a new one to continue.</p>
+      <div class="field" style="margin-bottom:14px"><label for="n1">New password (min. 8 characters)</label><input class="input" id="n1" type="password" minlength="8" required autocomplete="new-password"></div>
+      <div class="field" style="margin-bottom:20px"><label for="n2">Confirm new password</label><input class="input" id="n2" type="password" minlength="8" required autocomplete="new-password"></div>
+      <button class="btn btn-primary" style="width:100%" type="submit">Save and continue</button>
+      <p style="margin-top:14px;text-align:center"><button type="button" class="btn btn-ghost btn-sm" id="fpout">Sign out</button></p></form></div>`;
+    $('#fpout').addEventListener('click', async () => { await sb.auth.signOut({ scope: 'local' }); showLogin(); });
+    $('#fp').addEventListener('submit', async (e) => {
+      e.preventDefault(); const b = $('button[type=submit]', e.target), n = $('#n1').value;
+      if (n.length < 8) return toast('Password must be at least 8 characters', true);
+      if (n !== $('#n2').value) return toast('The two passwords do not match', true);
+      b.disabled = true;
+      try {
+        const { error } = await sb.auth.updateUser({ password: n, data: { must_change_password: false } }); if (error) throw error;
+        try { await sb.rpc('student_notify', { p_kind: 'password' }); } catch (x) { /* optional */ }
+        toast('Password saved'); boot();
+      } catch (er) { fail(er); b.disabled = false; }
+    });
+  }
+
   async function boot() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return showLogin();
     const { data, error } = await sb.from('students').select('*').eq('user_id', session.user.id).maybeSingle();
     if (error || !data) { await sb.auth.signOut({ scope: 'local' }); return showLogin(error ? 'Could not load your account: ' + error.message : 'This account is not a student account.'); }
+    if (data.status === 'Inactive') { await sb.auth.signOut({ scope: 'local' }); return showLogin('Your account is inactive. Please contact the institute.'); }
     ST = data;
+    if (session.user.user_metadata && session.user.user_metadata.must_change_password) return forcePasswordChange();
     try { await loadAll(); } catch (e) { fail(e); }
     shell(); go(location.hash.slice(1) || 'dashboard');
   }

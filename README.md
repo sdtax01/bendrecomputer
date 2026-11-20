@@ -85,6 +85,8 @@ Roles: `admin` can do everything (including Contact Information, Website Content
 
 **Registration number.** When the Admissions form is submitted (it now asks for **date of birth** and a required **email**), a student record is created and a unique number is generated: `serial – last 4 digits of mobile – birth-year YY`, e.g. first student with mobile ending 7708 born 1998 → **`001-7708-98`**. It is shown to the student on the success screen. The same person submitting twice (same mobile + date of birth) gets the same number; an email already in use is rejected. Serial numbers continue past 999 (`1000-…`). Walk-in students: *Admin → Students → + Add student*.
 
+**Admin → Admission Enquiries → Finalize Admission.** Every enquiry has three buttons: **Finalize Admission** (creates / activates the student in *Students* with all details from the enquiry, generates the registration number if needed, enrols the student in the course they enquired about with that course's fee, and marks the enquiry *Admission Confirmed*), **WhatsApp**, and **Delete Enquiry**. Above the table, tick **Select all** (or tick rows individually) and press **Bulk Finalize Admission** to register everyone selected in one go; a summary lists who was registered and who needs attention. Enquiries submitted *before* the date-of-birth field existed (and website contact messages) have no date of birth, so they are skipped in bulk — use their own *Finalize Admission* button, which asks for the date of birth (and email) first. Finalizing twice is harmless. **Delete Enquiry** removes the enquiry completely; if that person was never admitted (no course, no login, no payments) their auto-created student record is deleted too, while an already-admitted student keeps their record. After finalizing, use *Students → Create login* to give them portal access.
+
 **Admin → Students.** Search, open a student, edit details, **Create login / Reset password** (login ID = the student's email; leave the password blank to auto-generate, then copy it or send it on WhatsApp — it is shown once). Enrol the student in courses with the agreed fee.
 
 **Admin → Fees.** Per-enrolment fee, payments (Cash / UPI / Bank / Cheque / Card), automatic receipt numbers (`RCPT-26-00001`), printable receipt, outstanding balance, CSV export. Students never see fee data.
@@ -107,3 +109,30 @@ Roles: `admin` can do everything (including Contact Information, Website Content
 - Fees are visible to every staff user. To restrict fees to the `admin` role only, change `public.is_staff()` to `public.is_admin()` in the `fp_staff` policy.
 - Deleting a student removes their records but not their login account; remove it in Supabase → Authentication → Users if needed.
 - Fonts for the certificate (Fraunces, Figtree, Dancing Script) load from Google Fonts; if the visitor is offline the certificate falls back to system fonts.
+
+## Update v5 — spam guard, certificate guard, My Fees, faster attendance
+1. Run **schema-update-v5.sql** once in the Supabase SQL Editor (safe to re-run).
+2. Upload the changed files: `assets/js/forms.js`, `admin/admin-students.js`, `student/student.js`.
+- Public forms: hidden spam trap + server limits (5 enquiries per mobile per day, 60 per 10 minutes overall).
+- Certificates: warns about a pending fee balance (tick "Issue anyway" to override); blocks future / pre-start completion dates.
+- Student portal: new read-only **My Fees** page (fees, paid, balance, receipts).
+- Attendance: a new date starts with everyone Present — change only the absentees; All present / All absent buttons, live counts, warning for unmarked students.
+
+## Update v6 — dashboard redesign (cosmetic only)
+Upload: `assets/css/dash-ui.css` (new), `assets/js/dash-ui.js` (new), `admin/index.html`, `student/index.html`, `admin/admin.js`, `student/student.js`. No SQL needed.
+
+## Update v7 — Notification centre (bell)
+1. Run **schema-update-v7.sql** once in the Supabase SQL Editor (safe to re-run).
+2. Upload: `assets/css/notify-ui.css`, `assets/js/notify-ui.js`, `assets/js/dash-ui.js`, `admin/index.html`, `student/index.html`, `admin/admin.js`, `admin/admin-students.js`, `student/student.js`.
+- Admin bell: photo / contact / address / profile / password changes and assignment submissions by students. Admin menu → **Notifications** sends reminders to one, many, all or a course.
+- Student bell: new assignment, study material uploaded/updated, payment received, certificate ready, and messages from the institute.
+
+## v8 – Security hardening
+Run order after uploading the files:
+1. **Supabase SQL Editor** → run `schema-update-v8-security.sql` (generic admission error, inactive students blocked, 60-upload cap per student, staff 2FA enforcement).
+2. **Edge Functions** → redeploy `student-auth` (staff 2FA check, "must change password" flag) and deploy `form-gate` (CAPTCHA check). Set secret `TURNSTILE_SECRET_KEY`.
+3. **CAPTCHA** → create a free Cloudflare Turnstile widget, paste its site key into `TURNSTILE_SITE_KEY` in `assets/js/config.js`, test the contact and admission forms, and only then run `schema-captcha-enable.sql` (it closes the direct form RPCs). Leaving the key empty keeps forms working as before.
+4. **Staff 2FA** → Supabase → Authentication → Multi-Factor: enable TOTP. Then each staff member opens Admin Profile → "Two-factor sign-in" → Set up. Once enrolled, the code is required at sign-in.
+5. **Students** created by the institute are asked to choose their own password at first login.
+6. supabase-js is now self-hosted (`assets/js/vendor/supabase.js`, v2.118.0).
+7. Every page carries a Content-Security-Policy meta tag. If you edit an inline `<script>` in a page, its hash in that page's CSP must be regenerated (or move the code to a .js file).

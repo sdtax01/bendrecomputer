@@ -119,10 +119,34 @@
     });
   }
 
+  async function mfaChallenge() {
+    const { data: fl } = await sb.auth.mfa.listFactors();
+    const f = fl && fl.totp && fl.totp[0];
+    if (!f) return showLogin('Two-factor is required but no authenticator was found. Contact the administrator.');
+    app.innerHTML = `<div class="login-wrap"><form class="login-card" id="mf">
+      <h1>Two-factor check</h1><p style="color:var(--muted);margin-bottom:1.2rem">Enter the 6-digit code from your authenticator app.</p>
+      <div class="field" style="margin-bottom:18px"><label for="code">6-digit code</label><input class="input" id="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autocomplete="one-time-code"></div>
+      <button class="btn btn-primary" style="width:100%" type="submit">Verify</button>
+      <p style="margin-top:14px;text-align:center"><button type="button" class="btn btn-ghost btn-sm" id="mfout">Cancel and sign out</button></p></form></div>`;
+    $('#mfout').addEventListener('click', async () => { await sb.auth.signOut({ scope: 'local' }); showLogin(); });
+    $('#mf').addEventListener('submit', async (e) => {
+      e.preventDefault(); const b = $('button[type=submit]', e.target); b.disabled = true;
+      const { data: ch, error: e1 } = await sb.auth.mfa.challenge({ factorId: f.id });
+      const { error: e2 } = e1 ? { error: e1 } : await sb.auth.mfa.verify({ factorId: f.id, challengeId: ch.id, code: $('#code').value.trim() });
+      if (e2) { b.disabled = false; return toast('Code not accepted. Please try again.', true); }
+      boot();
+    });
+  }
+
   async function boot() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return showLogin();
     user = session.user;
+    /* two-factor: if this account has an authenticator app enrolled, ask for the 6-digit code first */
+    try {
+      const { data: aal } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aal && aal.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') return mfaChallenge();
+    } catch (e) { /* MFA not enabled on the project: continue normally */ }
     const { data, error } = await sb.from('admin_users').select('*').eq('user_id', user.id).maybeSingle();
     if (error) { await sb.auth.signOut({ scope: 'local' }); return showLogin('Signed in, but the database could not be read: ' + error.message + ' — run schema.sql in the Supabase SQL Editor first.'); }
     if (!data) { await sb.auth.signOut({ scope: 'local' }); return showLogin('Signed in, but this user is not in the admin_users table yet. Run the "insert into public.admin_users" SQL in the Supabase SQL Editor, then try again.'); }
@@ -674,13 +698,45 @@
     <form class="panel" id="pf" style="max-width:30rem"><h3 style="margin-bottom:14px">Change password</h3>
       <div class="field" style="margin-bottom:12px"><label>New password (min. 8 characters)</label><input class="input" type="password" name="p1" minlength="8" required autocomplete="new-password"></div>
       <div class="field" style="margin-bottom:16px"><label>Confirm new password</label><input class="input" type="password" name="p2" minlength="8" required autocomplete="new-password"></div>
-      <button class="btn btn-primary" type="submit">Update password</button></form>`;
+      <button class="btn btn-primary" type="submit">Update password</button></form>
+    <div class="panel" id="tfa" style="max-width:30rem;margin-top:18px"><h3 style="margin-bottom:10px">Two-factor sign-in (authenticator app)</h3><div id="tfab">Loading…</div></div>`;
+    tfaCard();
     $('#pf').addEventListener('submit', async (e) => {
       e.preventDefault(); const f = e.target;
       if (f.p1.value !== f.p2.value) return toast('Passwords do not match', true);
       const { error } = await sb.auth.updateUser({ password: f.p1.value }); if (error) return fail(error);
       f.reset(); toast('Password updated');
     });
+  }
+
+  async function tfaCard() {
+    const box = $('#tfab'); if (!box) return;
+    try {
+      const { data, error } = await sb.auth.mfa.listFactors(); if (error) throw error;
+      const f = (data.totp || [])[0];
+      if (f) {
+        box.innerHTML = `<p style="margin-bottom:12px">Status: <b>On</b>. A code from your authenticator app is needed at every sign-in.</p><button class="btn btn-ghost" id="tfoff">Turn off</button>`;
+        $('#tfoff').addEventListener('click', async () => {
+          if (!confirm('Turn off two-factor sign-in?')) return;
+          const { error: er } = await sb.auth.mfa.unenroll({ factorId: f.id }); if (er) return fail(er);
+          toast('Two-factor turned off'); tfaCard();
+        });
+      } else {
+        box.innerHTML = `<p style="margin-bottom:12px">Status: <b>Off</b>. Add a second step with Google Authenticator, Microsoft Authenticator or similar.</p><button class="btn btn-primary" id="tfon">Set up</button>`;
+        $('#tfon').addEventListener('click', async () => {
+          const { data: en, error: er } = await sb.auth.mfa.enroll({ factorType: 'totp' }); if (er) return fail(er);
+          box.innerHTML = `<p style="margin-bottom:10px">Scan this QR code in your authenticator app, then enter the 6-digit code.</p>
+            <img src="${en.totp.qr_code}" alt="QR code" width="180" height="180" style="background:#fff;padding:6px;border-radius:8px"><p style="font-size:.8rem;color:var(--muted);margin:8px 0;word-break:break-all">Or type this key: ${esc(en.totp.secret)}</p>
+            <div class="field" style="margin-bottom:12px"><input class="input" id="tfc" inputmode="numeric" maxlength="6" placeholder="6-digit code"></div><button class="btn btn-primary" id="tfv">Confirm</button>`;
+          $('#tfv').addEventListener('click', async () => {
+            const { data: ch, error: e1 } = await sb.auth.mfa.challenge({ factorId: en.id }); if (e1) return fail(e1);
+            const { error: e2 } = await sb.auth.mfa.verify({ factorId: en.id, challengeId: ch.id, code: $('#tfc').value.trim() });
+            if (e2) return toast('Code not accepted', true);
+            toast('Two-factor is now on'); tfaCard();
+          });
+        });
+      }
+    } catch (er) { box.innerHTML = '<p>Two-factor is not available on this Supabase project (enable MFA under Authentication → Multi-Factor).</p>'; }
   }
 
   // extension point used by admin-students.js (students, fees, attendance, material, assignments, certificates)
