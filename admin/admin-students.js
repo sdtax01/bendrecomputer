@@ -314,7 +314,8 @@
   async function attendance() {
     const { data: cs, error } = await sb.from('courses').select('id,name').order('sort_order'); if (error) throw error;
     V().innerHTML = `<h1>Attendance</h1><p class="sub">Mark daily attendance for a course. Students see it (view-only) in their portal.</p>
-      <div class="panel"><div class="filters" style="margin:0"><select class="input" id="c" aria-label="Course">${cs.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><input class="input" type="date" id="d" value="${today()}" max="${today()}" aria-label="Date"></div></div>
+      <div class="panel"><div class="filters" style="margin:0"><select class="input" id="c" aria-label="Course">${cs.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><input class="input" type="date" id="d" value="${today()}" max="${today()}" aria-label="Date"></div>
+      <p class="hint" style="margin:12px 0 0">Quick option: <button class="btn btn-ghost btn-sm" id="allc" title="Marks Present for every active student of every course that has no attendance saved for this date">Mark all courses Present for this date</button> then open a course and change only the absentees.</p></div>
       <div id="area"></div>`;
     const load = async () => {
       const c = $('#c').value, d = $('#d').value; if (!c || !d) return;
@@ -326,7 +327,7 @@
       const cur = {}; (at || []).forEach((a) => { cur[a.student_id] = a.status; });
       const fresh = !(at || []).length;   // nothing saved for this date yet: start everyone as Present, teacher only changes the absentees
       const list = (en || []).sort((a, b) => String(a.students?.full_name).localeCompare(String(b.students?.full_name)));
-      $('#area').innerHTML = list.length ? `<div class="panel"><div class="bar"><h3>${list.length} active students · ${fmt(d)}</h3><div class="row-actions"><button class="btn btn-ghost btn-sm" id="allp">All present</button><button class="btn btn-ghost btn-sm" id="alla">All absent</button><button class="btn btn-primary btn-sm" id="save">Save attendance</button></div></div>
+      $('#area').innerHTML = list.length ? `<div class="panel"><div class="bar"><h3>${list.length} active students · ${fmt(d)}</h3><div class="row-actions"><button class="btn btn-ghost btn-sm" id="cpy" title="Copy the most recent earlier day marked for this course">Copy last class</button><button class="btn btn-ghost btn-sm" id="allp">All present</button><button class="btn btn-ghost btn-sm" id="alla">All absent</button><button class="btn btn-primary btn-sm" id="save">Save attendance</button><button class="btn btn-primary btn-sm" id="savenx" title="Save, then open the next course">Save &amp; next course</button></div></div>
         <p class="hint" id="acount" aria-live="polite"></p>
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Reg. no</th><th>Student</th><th>Present</th><th>Absent</th><th>Leave</th></tr></thead><tbody>
         ${list.map((r) => `<tr><td>${esc(r.students?.reg_no)}</td><td><b>${esc(r.students?.full_name)}</b></td>${['Present', 'Absent', 'Leave'].map((s) => `<td><input type="radio" name="r_${r.student_id}" value="${s}" aria-label="${s}" ${(cur[r.student_id] || (fresh ? 'Present' : '')) === s ? 'checked' : ''}></td>`).join('')}</tr>`).join('')}</tbody></table></div>
@@ -336,6 +337,22 @@
       const all = $('#allp'); if (all) all.addEventListener('click', () => setAll('Present'));
       const alla = $('#alla'); if (alla) alla.addEventListener('click', () => setAll('Absent'));
       const tb = document.querySelector('#area tbody'); if (tb) tb.addEventListener('change', count); count();
+      const cp = $('#cpy'); if (cp) cp.addEventListener('click', () => withBusy(cp, 'Copying…', async () => {
+        const { data: prev, error: pe } = await sb.from('attendance').select('att_date').eq('course_id', c).lt('att_date', d).order('att_date', { ascending: false }).limit(1); if (pe) throw pe;
+        if (!prev || !prev.length) throw new Error('No earlier attendance found for this course');
+        const { data: rows, error: re } = await sb.from('attendance').select('student_id,status').eq('course_id', c).eq('att_date', prev[0].att_date); if (re) throw re;
+        (rows || []).forEach((r) => { const x = document.querySelector(`input[name="r_${r.student_id}"][value="${r.status}"]`); if (x) x.checked = true; });
+        count(); toast('Copied from ' + fmt(prev[0].att_date) + ' — review, then save');
+      }));
+      const saveNow = async (next) => {
+        const rows = list.map((r) => { const x = document.querySelector(`input[name="r_${r.student_id}"]:checked`); return x ? { student_id: r.student_id, course_id: c, att_date: d, status: x.value } : null; }).filter(Boolean);
+        if (!rows.length) throw new Error('Mark at least one student');
+        const left = list.length - rows.length; if (left > 0 && !confirm(left + ' student(s) are not marked and will not be saved. Save anyway?')) return;
+        const { error: er } = await sb.from('attendance').upsert(rows, { onConflict: 'student_id,course_id,att_date' }); if (er) throw er;
+        toast(`Attendance saved for ${rows.length} students`);
+        if (next) { const sel = $('#c'), i = sel.selectedIndex; if (i < sel.options.length - 1) { sel.selectedIndex = i + 1; load(); } else toast('That was the last course'); }
+      };
+      const sn = $('#savenx'); if (sn) sn.addEventListener('click', () => withBusy(sn, 'Saving…', () => saveNow(true)));
       const sv = $('#save'); if (sv) sv.addEventListener('click', () => withBusy(sv, 'Saving…', async () => {
         const rows = list.map((r) => { const x = document.querySelector(`input[name="r_${r.student_id}"]:checked`); return x ? { student_id: r.student_id, course_id: c, att_date: d, status: x.value } : null; }).filter(Boolean);
         if (!rows.length) throw new Error('Mark at least one student');
@@ -344,6 +361,17 @@
         toast(`Attendance saved for ${rows.length} students`);
       }));
     };
+    const ac = $('#allc'); if (ac) ac.addEventListener('click', () => withBusy(ac, 'Working…', async () => {
+      const d = $('#d').value; if (!d) throw new Error('Choose a date');
+      if (!confirm('Mark every active student as Present on ' + fmt(d) + ' for all courses that have nothing saved for that date? Courses already marked are left unchanged.')) return;
+      const [{ data: en, error: e1 }, { data: at, error: e2 }] = await Promise.all([sb.from('student_courses').select('student_id,course_id').eq('status', 'Active'), sb.from('attendance').select('course_id').eq('att_date', d)]);
+      if (e1) throw e1; if (e2) throw e2;
+      const done = new Set((at || []).map((a) => a.course_id));
+      const rows = (en || []).filter((x) => !done.has(x.course_id)).map((x) => ({ student_id: x.student_id, course_id: x.course_id, att_date: d, status: 'Present' }));
+      if (!rows.length) return toast('Every course already has attendance for this date');
+      const { error: er } = await sb.from('attendance').upsert(rows, { onConflict: 'student_id,course_id,att_date', ignoreDuplicates: true }); if (er) throw er;
+      toast(`Marked ${rows.length} students Present — now open a course and change only the absentees`); load();
+    }));
     $('#c').addEventListener('change', load); $('#d').addEventListener('change', load); load();
   }
 
