@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://challenges.cloudflare.com 'sha256-oilmqtCIFEnKa+b88B0rU3JI+J/YAYwnwv/Rk9lcqgg=' 'sha256-YwTJDfibbbYoV2OHsn/m3Ht+T16BgbD0zYwrSr1AO14='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com; frame-src https://www.google.com https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self' https://wa.me">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://challenges.cloudflare.com 'sha256-oilmqtCIFEnKa+b88B0rU3JI+J/YAYwnwv/Rk9lcqgg='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com; frame-src https://www.google.com https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self' https://wa.me">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>About Institute | Bendre Computer Typing Institute, Pune</title>
-<meta name="description" content="About Bendre Computer Typing Institute in Wadgaonsheri, Pune — a computer typing and education institute helping students build practical skills.">
+<meta name="description" content="About Bendre Computer Typing Institute, Wadgaonsheri, Pune — 35 years (1991–2026) of GCC-TBC typing, Tally Prime, Advanced Excel and computer training.">
 <meta property="og:title" content="About | Bendre Computer Typing Institute">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#0b1f4b">
@@ -13,31 +13,33 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/about-page.css">
 </head>
 <body>
 <div id="site-header"></div>
 <main id="main">
   <section class="page-hero"><div class="hero-bg" aria-hidden="true"></div><div class="container">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Home</a><span>/</span><span aria-current="page" style="opacity:1;color:var(--navy)">About Institute</span></nav>
-    <span class="eyebrow">About Institute</span>
-    <h1 class="split-auto">Building practical skills, one batch at a time</h1>
+    <div class="ab-hero"><div id="ab-hero-text"><span class="eyebrow">About Institute</span><h1 class="split-auto">Building practical skills, one batch at a time</h1></div>
+      <div class="ab-split" id="ab-split" data-reveal="scale" aria-label="Then and now"></div></div>
   </div></section>
-  <section class="section" style="padding-top:clamp(2rem,4vw,3.4rem)"><div class="container">
+  <section class="section" data-sec hidden><div class="container"><div class="ab-story" id="ab-story"></div></div></section>
+  <section class="section alt" data-sec hidden><div class="container" id="ab-tl-wrap"></div></section>
+  <section class="section" data-sec hidden><div class="container" id="ab-prog-wrap"></div></section>
+  <section class="section" style="padding-block:0 clamp(2rem,4vw,3.4rem)" data-sec hidden><div class="container" id="ab-metrics"></div></section>
+  <section class="section alt" data-sec hidden><div class="container" id="ab-team"></div></section>
+  <section class="section" id="about-extra" hidden style="padding-top:clamp(2rem,4vw,3.4rem)"><div class="container">
     <div class="prose" id="about-intro" style="max-width:48rem" data-reveal></div>
     <div class="grid grid-3" id="about-cards" data-stagger style="margin-top:2rem"></div>
-    <div id="about-empty" class="setup-banner" hidden style="margin-top:1.8rem">Vision, mission, teaching approach and learning environment can be added from the admin dashboard → Website Content.</div>
   </div></section>
   <section class="section alt"><div class="container">
     <div class="section-head center" data-reveal><span class="eyebrow">Learning Environment</span><h2>See our students and classes</h2>
       <p class="lead">Photographs of our batches are in the student gallery.</p></div>
     <p class="center"><a class="btn btn-primary" href="gallery.html">Visit the Student Gallery</a></p>
   </div></section>
+  <section class="section" data-sec hidden style="padding-bottom:0"><div class="container" id="ab-acc"></div></section>
   <section class="section"><div class="container">
-    <div class="cta-banner" data-reveal="scale"><span class="ring a" data-parallax="-0.08" aria-hidden="true"></span><span class="ring b" data-parallax="0.12" aria-hidden="true"></span>
-      <div><h2>Ready to Start Your Learning Journey?</h2>
-      <p>Take the first step towards developing your computer and typing skills.</p></div>
-      <div class="cta-row"><a class="btn btn-accent" href="admissions.html">Enquire for Admission</a>
-      <a class="btn btn-light" href="contact.html">Contact Us</a></div></div>
+    <div class="cta-banner" data-reveal="scale" id="ab-cta"></div>
   </div></section>
 </main>
 <div id="site-footer"></div>
@@ -45,15 +47,7 @@
 <script src="assets/js/config.js"></script>
 <script src="assets/js/common.js"></script>
 <script src="assets/js/motion.js"></script>
-<script>
-(async function () {
-  const { esc, icon } = window.BCTI;
-  const S = await window.BCTI.ready; const a = S.about;
-  document.getElementById('about-intro').innerHTML = a.intro ? `<p style="font-size:1.2rem;color:var(--ink);line-height:1.7">${esc(a.intro)}</p>` : '';
-  const items = [['compass', 'Our Vision', a.vision], ['flag', 'Our Mission', a.mission], ['book', 'Teaching Approach', a.teaching_approach], ['school', 'Learning Environment', a.learning_environment]].filter((x) => x[2] && x[2].trim());
-  document.getElementById('about-cards').innerHTML = items.map(([i, t, d]) => `<div class="card"><div class="icon">${icon(i)}</div><h3>${t}</h3><p>${esc(d)}</p></div>`).join('');
-  document.getElementById('about-empty').hidden = items.length > 0;
-})();
-</script>
+<script src="assets/js/about-defaults.js"></script>
+<script src="assets/js/about-page.js"></script>
 </body>
 </html>
