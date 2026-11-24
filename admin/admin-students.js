@@ -175,6 +175,7 @@
       sb.from('courses').select('id,name,fee').order('sort_order')]);
     if (error || !s) throw error || new Error('Student not found');
     const isAdm = !!(EXT.receipts && EXT.receipts.enabled());
+    const canRev = () => { const R = EXT.receipts; if (R && typeof R.canReverse === 'function') return R.canReverse(); if (EXT.branches && typeof EXT.branches.canReverse === 'function') return EXT.branches.canReverse(); return !!(EXT.api.me && EXT.api.me.role === 'admin'); };
     let photo = ''; if (s.photo_path) { try { photo = await signed('student-files', s.photo_path); } catch (e) { /* no photo */ } }
     const enrolled = new Set((enr || []).map((e) => e.course_id));
     const totals = (enr || []).filter((e) => e.status !== 'Dropped').reduce((a, e) => { const f = feeOf(e, pays || []); a.t += f.total; a.p += f.paid; return a; }, { t: 0, p: 0 });
@@ -198,7 +199,7 @@
       ${(pays || []).map((p) => { const e = enr.find((x) => x.id === p.enrollment_id), neg = Number(p.amount) < 0, revd = (pays || []).some((r) => r.reverses_payment_id === p.id);
         const st2 = neg ? '<span class="pill draft">Reversal entry</span>' : revd ? '<span class="pill draft" style="color:var(--err)">Reversed</span>' : p.snap_balance !== null && p.snap_balance !== undefined && Number(p.snap_balance) <= 0 ? '<span class="pill ok">Paid in full</span>' : '<span class="pill ok">Received</span>';
         const acts = isAdm
-          ? (neg ? `<span class="hint">${esc(p.reversal_reason || '')}</span>` : `<button class="btn btn-ghost btn-sm" data-rv="${p.id}">View</button><button class="btn btn-ghost btn-sm" data-rpr="${p.id}">Print</button><button class="btn btn-ghost btn-sm" data-rpd="${p.id}">PDF</button>${revd || !EXT.receipts.canReverse() ? '' : `<button class="btn btn-danger btn-sm" data-rev="${p.id}">Reverse</button>`}`)
+          ? (neg ? `<span class="hint">${esc(p.reversal_reason || '')}</span>` : `<button class="btn btn-ghost btn-sm" data-rv="${p.id}">View</button><button class="btn btn-ghost btn-sm" data-rpr="${p.id}">Print</button><button class="btn btn-ghost btn-sm" data-rpd="${p.id}">PDF</button>${revd || !canRev() ? '' : `<button class="btn btn-danger btn-sm" data-rev="${p.id}">Reverse</button>`}`)
           : `<button class="btn btn-ghost btn-sm" data-rc="${p.id}">Receipt</button><button class="btn btn-danger btn-sm" data-dp="${p.id}">Delete</button>`;
         return `<tr${neg || revd ? ' style="opacity:.75"' : ''}><td><b>${esc(p.receipt_no)}</b></td><td>${fmt(p.paid_on)}</td><td>${esc(e?.courses?.name || '')}</td><td>${inr(p.amount)}</td><td>${esc(p.mode)}${p.reference ? `<div class="hint">${esc(p.reference)}</div>` : ''}</td>
         ${isAdm ? `<td>${neg ? '—' : p.snap_received == null ? '—' : inr(p.snap_received)}</td><td>${neg ? '—' : p.snap_balance == null ? '—' : inr(Math.max(0, p.snap_balance))}</td><td>${st2}</td>` : ''}
