@@ -4,5 +4,6 @@
   Referrer-Policy: strict-origin-when-cross-origin
 /admin/*
   X-Robots-Tag: noindex
+  Cache-Control: no-cache
 /student/*
   X-Robots-Tag: noindex
