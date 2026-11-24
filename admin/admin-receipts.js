@@ -90,16 +90,14 @@
     ruled('Payment Mode :', 44, 742, 800, d.mode, 40);
     ruled('Ref. / Txn No. :', 830, 742, 1597, d.reference || '', 36);
 
-    /* fee table (this receipt) */
-    const tx = 30, ty = 785, rh = 45, c1 = 322, c2 = 218; c.fillStyle = '#fff';
+    /* ONE combined table: this receipt's fee heads, then the payment summary */
+    const tx = 30, ty = 772, rh = 37, c1 = 460, c2 = 230; c.fillStyle = '#fff';
     const head = d.fee_head, amt = money(d.amount);
-    const rows = [['Particulars', 'Amount (₹)'], ['Admission Fee', head === 'Admission' ? amt : ''], ['Tuition Fee', head === 'Tuition' ? amt : ''], ['Other Fee', head === 'Other' ? amt : ''], ['Total Fee', amt]];
-    rows.forEach((r, i) => { const y = ty + i * rh; rect(tx, y, c1, rh, BLACK, 3); rect(tx + c1, y, c2, rh, BLACK, 3); txt(r[0], tx + 12, y + 33, 30, RED); if (i === 0) txt(r[1], tx + c1 + 12, y + 33, 28, RED); else if (r[1]) hand(r[1], tx + c1 + c2 - 12, y + 33, 30, c2 - 24, 'right'); });
-    /* payment summary */
-    const sx = 605, s1 = 330, s2 = 205;
-    const sum = [['Particulars', 'Amount (₹)'], ['Total Course Fee', money(d.total_fee)], ['Latest Fee Received', money(d.amount)], ['Total Fees Received', money(d.received_total)], ['Pending Balance', money(d.pending)]];
-    sum.forEach((r, i) => { const y = ty + i * rh; rect(sx, y, s1, rh, BLACK, 3); rect(sx + s1, y, s2, rh, BLACK, 3); txt(r[0], sx + 12, y + 33, 28, RED); if (i === 0) txt(r[1], sx + s1 + 12, y + 33, 28, RED); else hand(r[1], sx + s1 + s2 - 12, y + 33, 30, s2 - 24, 'right'); });
-    if (d.excess > 0) txt('Advance / excess received: ' + money(d.excess), sx, ty + 5 * rh + 36, 26, RED);
+    const rows = [['Particulars', 'Amount (₹)'], ['Admission Fee', head === 'Admission' ? amt : ''], ['Tuition Fee', head === 'Tuition' ? amt : ''], ['Other Fee', head === 'Other' ? amt : ''],
+      ['Total Fee (Latest Fee Received)', amt], ['Total Course Fee', money(d.total_fee)], ['Total Fees Received', money(d.received_total)], ['Pending Balance', money(d.pending)]];
+    rows.forEach((r, i) => { const y = ty + i * rh; rect(tx, y, c1, rh, BLACK, 3); rect(tx + c1, y, c2, rh, BLACK, 3);
+      txt(r[0], tx + 12, y + 28, 27, RED); if (i === 0) txt(r[1], tx + c1 + 12, y + 28, 27, RED); else if (r[1]) hand(r[1], tx + c1 + c2 - 12, y + 28, 29, c2 - 24, 'right'); });
+    if (d.excess > 0) txt('Advance / excess received: ' + money(d.excess), tx + c1 + c2 + 30, ty + 7 * rh + 26, 26, RED);
 
     /* principal */
     txt('Principal/Teacher', 1560, 985, 40, RED, { align: 'right' });
