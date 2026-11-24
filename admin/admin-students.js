@@ -89,6 +89,7 @@
       <div class="field"><label>Date *</label><input class="input" name="paid_on" type="date" required value="${today()}"></div>
       <div class="field"><label>Mode</label><select class="input" name="mode">${['Cash', 'UPI', 'Bank Transfer', 'Cheque', 'Card', 'Other'].map((x) => `<option>${x}</option>`).join('')}</select></div>
       <div class="field"><label>Reference / UPI txn / cheque no.</label><input class="input" name="reference" maxlength="80"></div>
+      <div class="field"><label>Fee type (shown on the receipt)</label><select class="input" name="fee_head"><option>Tuition</option><option>Admission</option><option>Other</option></select></div>
       <div class="field full"><label>Note</label><input class="input" name="note" maxlength="200"></div></div>
       <div class="modal-actions"><button type="button" class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" type="submit">Save payment</button></div></form>`);
     $('#pf', m.el).addEventListener('submit', async (e) => {
@@ -97,10 +98,14 @@
         const amt = parseFloat(f.amount.value);
         if (!(amt > 0)) throw new Error('Enter a valid amount');
         if (amt > fees.balance + 0.001 && !confirm(`This is more than the balance (${inr(fees.balance)}). Record it anyway?`)) { b.disabled = false; return; }
-        const { data, error } = await sb.from('fee_payments').insert({ student_id: st.id, enrollment_id: enr.id, amount: amt, paid_on: f.paid_on.value, mode: f.mode.value, reference: f.reference.value.trim() || null, note: f.note.value.trim() || null }).select().single();
+        const row = { student_id: st.id, enrollment_id: enr.id, amount: amt, paid_on: f.paid_on.value, mode: f.mode.value, reference: f.reference.value.trim() || null, note: f.note.value.trim() || null };
+        let { data, error } = await sb.from('fee_payments').insert(Object.assign({ fee_head: f.fee_head.value }, row)).select().single();
+        if (error && /fee_head/.test(error.message || '')) ({ data, error } = await sb.from('fee_payments').insert(row).select().single());   // receipts SQL not installed yet
         if (error) throw error;
         toast('Payment recorded · ' + data.receipt_no); m.close();
-        if (confirm('Print receipt now?')) printReceipt(data, st, enr, { total: fees.total, paid: fees.paid + amt, balance: fees.balance - amt }, await contactInfo());
+        const R = EXT.receipts;
+        if (R && R.enabled()) { try { await R.open(data.id); } catch (e2) { if (confirm('The new receipt could not be prepared (' + (e2.message || e2) + ').\nPrint the basic receipt instead?')) printReceipt(data, st, enr, { total: fees.total, paid: fees.paid + amt, balance: fees.balance - amt }, await contactInfo()); } }
+        else if (confirm('Print receipt now?')) printReceipt(data, st, enr, { total: fees.total, paid: fees.paid + amt, balance: fees.balance - amt }, await contactInfo());
         done();
       } catch (er) { fail(er); b.disabled = false; }
     });
@@ -169,6 +174,7 @@
       sb.from('fee_payments').select('*').eq('student_id', id).order('paid_on', { ascending: false }),
       sb.from('courses').select('id,name,fee').order('sort_order')]);
     if (error || !s) throw error || new Error('Student not found');
+    const isAdm = !!(EXT.receipts && EXT.receipts.enabled());
     let photo = ''; if (s.photo_path) { try { photo = await signed('student-files', s.photo_path); } catch (e) { /* no photo */ } }
     const enrolled = new Set((enr || []).map((e) => e.course_id));
     const totals = (enr || []).filter((e) => e.status !== 'Dropped').reduce((a, e) => { const f = feeOf(e, pays || []); a.t += f.total; a.p += f.paid; return a; }, { t: 0, p: 0 });
@@ -188,9 +194,15 @@
         ${e.certificate_no ? `<button class="btn btn-primary btn-sm" data-cert="${e.id}">Certificate</button>` : (e.status !== 'Dropped' ? `<button class="btn btn-primary btn-sm" data-done="${e.id}">Complete &amp; certify</button>` : '')}
         ${e.status === 'Active' ? `<button class="btn btn-danger btn-sm" data-drop="${e.id}">Drop</button>` : e.status === 'Dropped' ? `<button class="btn btn-ghost btn-sm" data-react="${e.id}">Re-activate</button>` : ''}</div></td></tr>`; }).join('') || '<tr><td colspan="6">Not enrolled in any course yet.</td></tr>'}</tbody></table></div></div>
 
-    <div class="panel"><h3>Payment history</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Receipt</th><th>Date</th><th>Course</th><th>Amount</th><th>Mode</th><th></th></tr></thead><tbody>
-      ${(pays || []).map((p) => { const e = enr.find((x) => x.id === p.enrollment_id); return `<tr><td><b>${esc(p.receipt_no)}</b></td><td>${fmt(p.paid_on)}</td><td>${esc(e?.courses?.name || '')}</td><td>${inr(p.amount)}</td><td>${esc(p.mode)}${p.reference ? `<div class="hint">${esc(p.reference)}</div>` : ''}</td>
-        <td><div class="row-actions"><button class="btn btn-ghost btn-sm" data-rc="${p.id}">Receipt</button><button class="btn btn-danger btn-sm" data-dp="${p.id}">Delete</button></div></td></tr>`; }).join('') || '<tr><td colspan="6">No payments recorded.</td></tr>'}</tbody></table></div></div></div>`;
+    <div class="panel"><h3>Payment history${isAdm ? ' &amp; receipts' : ''}</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Receipt</th><th>Date</th><th>Course</th><th>Amount</th><th>Mode</th>${isAdm ? '<th>Total received</th><th>Pending</th><th>Status</th>' : ''}<th></th></tr></thead><tbody>
+      ${(pays || []).map((p) => { const e = enr.find((x) => x.id === p.enrollment_id), neg = Number(p.amount) < 0, revd = (pays || []).some((r) => r.reverses_payment_id === p.id);
+        const st2 = neg ? '<span class="pill draft">Reversal entry</span>' : revd ? '<span class="pill draft" style="color:var(--err)">Reversed</span>' : p.snap_balance !== null && p.snap_balance !== undefined && Number(p.snap_balance) <= 0 ? '<span class="pill ok">Paid in full</span>' : '<span class="pill ok">Received</span>';
+        const acts = isAdm
+          ? (neg ? `<span class="hint">${esc(p.reversal_reason || '')}</span>` : `<button class="btn btn-ghost btn-sm" data-rv="${p.id}">View</button><button class="btn btn-ghost btn-sm" data-rpr="${p.id}">Print</button><button class="btn btn-ghost btn-sm" data-rpd="${p.id}">PDF</button>${revd ? '' : `<button class="btn btn-danger btn-sm" data-rev="${p.id}">Reverse</button>`}`)
+          : `<button class="btn btn-ghost btn-sm" data-rc="${p.id}">Receipt</button><button class="btn btn-danger btn-sm" data-dp="${p.id}">Delete</button>`;
+        return `<tr${neg || revd ? ' style="opacity:.75"' : ''}><td><b>${esc(p.receipt_no)}</b></td><td>${fmt(p.paid_on)}</td><td>${esc(e?.courses?.name || '')}</td><td>${inr(p.amount)}</td><td>${esc(p.mode)}${p.reference ? `<div class="hint">${esc(p.reference)}</div>` : ''}</td>
+        ${isAdm ? `<td>${neg ? '—' : p.snap_received == null ? '—' : inr(p.snap_received)}</td><td>${neg ? '—' : p.snap_balance == null ? '—' : inr(Math.max(0, p.snap_balance))}</td><td>${st2}</td>` : ''}
+        <td><div class="row-actions">${acts}</div></td></tr>`; }).join('') || `<tr><td colspan="${isAdm ? 9 : 6}">No payments recorded.</td></tr>`}</tbody></table></div></div></div>`;
 
     const reload = () => go('studentDetail', id);
     $('#back').addEventListener('click', () => go('students'));
@@ -236,6 +248,10 @@
       if (d.drop && confirm('Mark this enrolment as dropped?')) { const { error: er } = await sb.from('student_courses').update({ status: 'Dropped' }).eq('id', d.drop); if (er) return fail(er); reload(); }
       if (d.react) { const { error: er } = await sb.from('student_courses').update({ status: 'Active' }).eq('id', d.react); if (er) return fail(er); reload(); }
       if (d.rc) { const p = pays.find((x) => x.id === d.rc), x = en(p.enrollment_id); printReceipt(p, s, x, feeOf(x, pays), await contactInfo()); }
+      if (d.rv) withBusy(b, 'Opening…', () => EXT.receipts.open(d.rv));
+      if (d.rpr) withBusy(b, 'Preparing…', () => EXT.receipts.direct(d.rpr, 'print'));
+      if (d.rpd) withBusy(b, 'Preparing…', () => EXT.receipts.direct(d.rpd, 'pdf'));
+      if (d.rev) EXT.receipts.reverse(d.rev, reload);
       if (d.dp && confirm('Delete this payment record?')) { const { error: er } = await sb.from('fee_payments').delete().eq('id', d.dp); if (er) return fail(er); toast('Payment deleted'); reload(); }
     });
   }
