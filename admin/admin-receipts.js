@@ -62,9 +62,14 @@
     /* frame + header */
     rect(18, 22, 1604, 1118, BLACK, 3);
     fit('BENDRE COMPUTER TYPING INSTITUTE', 820, 98, 70, RED, 1354, { align: 'center' });
-    txt('Utkarsha, Plot No. 4, Gat No. 267, Vithoba Park, Maher Sanstha Road,', 820, 148, 33, BLACK, { align: 'center' });
-    txt('Nr. Mankainagar, Manjari Khurd, Pune 412 307.', 820, 190, 33, BLACK, { align: 'center' });
-    txt('Mob. 9763636548 / 9657037708', 820, 236, 36, BLACK, { align: 'center' });
+    let ad1 = 'Utkarsha, Plot No. 4, Gat No. 267, Vithoba Park, Maher Sanstha Road,', ad2 = 'Nr. Mankainagar, Manjari Khurd, Pune 412 307.', ph = 'Mob. 9763636548 / 9657037708';
+    if (d.branch_code && d.branch_code !== 'MKH' && d.branch_address) {            // other branches print their own address (Manjari Khurd keeps the original wording)
+      const parts = String(d.branch_address).split(',').map((x) => x.trim()).filter(Boolean), half = Math.ceil(parts.length / 2);
+      ad1 = parts.slice(0, half).join(', ') + ','; ad2 = parts.slice(half).join(', ') + '.'; ph = d.branch_phone ? 'Mob. ' + d.branch_phone : '';
+    }
+    txt(ad1, 820, 148, 33, BLACK, { align: 'center' });
+    txt(ad2, 820, 190, 33, BLACK, { align: 'center' });
+    if (ph) txt(ph, 820, 236, 36, BLACK, { align: 'center' });
     c.strokeStyle = BLACK; c.lineWidth = 3; c.beginPath(); c.roundRect(640, 268, 363, 62, 31); c.stroke();
     spaced('RECEIPT', 821, 314, 44, RED, 14);
 
@@ -160,5 +165,6 @@
     toast('Payment reversed'); if (done) done();
   }
 
-  EXT.receipts = { enabled: () => !!(EXT.api.me && EXT.api.me.role === 'admin'), open, direct, reverse, words: rupeesInWords, render };
+  const TT = ['branch_admin', 'accountant', 'reception'];
+  EXT.receipts = { enabled: () => !!(EXT.api.me && (EXT.api.me.role === 'admin' || TT.includes(EXT.api.me.staff_title || ''))), canReverse: () => !!(EXT.api.me && (EXT.api.me.role === 'admin' || ['branch_admin', 'accountant'].includes(EXT.api.me.staff_title || ''))), open, direct, reverse, words: rupeesInWords, render };
 })();
